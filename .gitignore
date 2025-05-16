@@ -1,6 +1,42 @@
-echo "vectordb/" >> .gitignore
-echo "data/" >> .gitignore
+# Virtual Environment
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+
+# Large data files
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Vector database
+vectordb/
+
+# API keys and secrets
+*.pem
+*.env
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+# First, revert the last commit (since it includes large files)
+git reset HEAD~1
+
+# Update your .gitignore to include these specific files
+echo "vectordb/chroma.sqlite3" >> .gitignore
+echo "vectordb/bba199d0-6a19-417e-91a9-0291eb1fb878/data_level0.bin" >> .gitignore
+echo "venv/lib/python3.12/site-packages/onnxruntime/capi/libonnxruntime.1.21.0.dylib" >> .gitignore
+echo "venv/lib/python3.12/site-packages/onnxruntime/capi/onnxruntime_pybind11_state.so" >> .gitignore
+# Better venv exclusion
 echo "venv/" >> .gitignore
-echo ".env" >> .gitignore
-echo "__pycache__/" >> .gitignore
-echo "*.pyc" >> .gitignore
+echo "venv/**/*" >> .gitignore
