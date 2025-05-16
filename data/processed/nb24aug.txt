@@ -1,0 +1,360 @@
+# nb24aug
+
+## Page 1
+
+Text Classification and Naive BayesThe Task of Text Classification
+
+## Page 2
+
+Is this spam?
+
+## Page 3
+
+Who wrote which Federalist Papers?1787-8: essays anonymously written by:     Alexander Hamilton, James Madison, and John Jay to convince New York to ratify U.S Constitution  Authorship of 12 of the letters unclear between:1963: solved by Mosteller and Wallace using Bayesian methods
+James MadisonAlexander Hamilton
+
+## Page 4
+
+Positive or negative movie review?unbelievably disappointing Full of zany characters and richly applied satire, and some great plot twiststhis is the greatest screwball comedy ever filmedIt was pathetic. The worst part about it was the boxing scenes.4
+
+## Page 5
+
+What is the subject of this article?Antogonists and InhibitorsBlood SupplyChemistryDrug TherapyEmbryologyEpidemiology…5MeSH Subject Category Hierarchy?MEDLINE Article
+
+## Page 6
+
+Text ClassificationAssigning subject categories, topics, or genresSpam detectionAuthorship identification (who wrote this?)Language Identification (is this Portuguese?)Sentiment analysis…
+
+## Page 7
+
+Text Classification: definitionInput:◦ a document d◦ a fixed set of classes  C = {c1, c2,…, cJ}Output: a predicted class c Î C
+
+## Page 8
+
+Basic Classification Method: Hand-coded rulesRules based on combinations of words or other features◦ spam: black-list-address OR (“dollars” AND “have been selected”)Accuracy can be high•In very specific domains•If rules are carefully refined by expertsBut:•building and maintaining rules is expensive•they are too literal and specific: "high-precision, low-recall"
+
+## Page 9
+
+Classification Method:Supervised Machine LearningInput: ◦a document d◦ a fixed set of classes  C = {c1, c2,…, cJ}◦A training set of m hand-labeled documents (d1,c1),....,(dm,cm)Output: ◦a learned classifier γ:d à c
+9
+
+## Page 10
+
+Classification Methods:Supervised Machine LearningMany kinds of classifiers!•Naïve Bayes (this lecture)•Logistic regression  •Neural networks•k-nearest neighbors•…We can also use pretrained large language models!•Fine-tuned as classifiers•Prompted to give a classification
+
+## Page 11
+
+Text Classification and Naive BayesThe Naive Bayes Classifier
+
+## Page 12
+
+Naive Bayes IntuitionSimple ("naive") classification method based on Bayes ruleRelies on very simple representation of document◦Bag of words
+
+## Page 13
+
+The Bag of Words Representation
+13ititititititIIII
+Iloverecommendmoviethethethetheto
+totoand
+andandseenseenyetwouldwithwhowhimsical
+whilewhenevertimessweetseveralscenessatiricalromanticofmanageshumorhavehappyfunfriendfairydialoguebutconventionsareanyoneadventurealwaysagainaboutI love this movie! It's sweet, but with satirical humor. The dialogue is great and the adventure scenes are fun... It manages to be whimsical and romantic while laughing at the conventions of the fairy tale genre. I would recommend it to just about anyone. I've seen it several times, and I'm always happy to see it again whenever I have a friend who hasn't seen it yet!it Ithetoandseenyetwouldwhimsicaltimessweetsatiricaladventuregenrefairyhumorhavegreat…6 54332111111111111…ititititititIIII
+Iloverecommendmoviethethethetheto
+totoand
+andandseenseenyetwouldwithwhowhimsical
+whilewhenevertimessweetseveralscenessatiricalromanticofmanageshumorhavehappyfunfriendfairydialoguebutconventionsareanyoneadventurealwaysagainaboutI love this movie! It's sweet, but with satirical humor. The dialogue is great and the adventure scenes are fun... It manages to be whimsical and romantic while laughing at the conventions of the fairy tale genre. I would recommend it to just about anyone. I've seen it several times, and I'm always happy to see it again whenever I have a friend who hasn't seen it yet!it Ithetoandseenyetwouldwhimsicaltimessweetsatiricaladventuregenrefairyhumorhavegreat…6 54332111111111111…ititititititIIII
+Iloverecommendmoviethethethetheto
+totoand
+andandseenseenyetwouldwithwhowhimsical
+whilewhenevertimessweetseveralscenessatiricalromanticofmanageshumorhavehappyfunfriendfairydialoguebutconventionsareanyoneadventurealwaysagainaboutI love this movie! It's sweet, but with satirical humor. The dialogue is great and the adventure scenes are fun... It manages to be whimsical and romantic while laughing at the conventions of the fairy tale genre. I would recommend it to just about anyone. I've seen it several times, and I'm always happy to see it again whenever I have a friend who hasn't seen it yet!it Ithetoandseenyetwouldwhimsicaltimessweetsatiricaladventuregenrefairyhumorhavegreat…6 54332111111111111…
+
+## Page 14
+
+The bag of words representationγ()=cseen2sweet1whimsical1recommend1happy1......
+
+## Page 15
+
+Bayes’ Rule Applied to Documents and Classes•For a document d and a class cP(c|d)=P(d|c)P(c)P(d)
+
+## Page 16
+
+Naive Bayes Classifier (I)cMAP=argmaxc∈CP(c|d)=argmaxc∈CP(d|c)P(c)P(d)=argmaxc∈CP(d|c)P(c)
+MAP is “maximum a posteriori”  = most likely class
+Bayes Rule
+Dropping the denominator
+
+## Page 17
+
+Naive Bayes Classifier (II)cMAP=argmaxc∈CP(d|c)P(c)
+Document d represented as features x1..xn=argmaxc∈CP(x1,x2,…,xn|c)P(c)
+"Likelihood"
+"Prior"
+
+## Page 18
+
+Naïve Bayes Classifier (IV)
+How often does this class occur?cMAP=argmaxc∈CP(x1,x2,…,xn|c)P(c)
+O(|X|n•|C|) parameters
+We can just count the relative frequencies in a corpus
+Could only be estimated if a very, very large number of training examples was available.
+
+## Page 19
+
+Multinomial Naive Bayes Independence AssumptionsBag of Words assumption: Assume position doesn’t matterConditional Independence: Assume the feature probabilities P(xi|cj) are independent given the class c.P(x1,x2,…,xn|c)P(x1,…,xn|c)=P(x1|c)•P(x2|c)•P(x3|c)•...•P(xn|c)
+
+## Page 20
+
+Multinomial Naive Bayes ClassifiercMAP=argmaxc∈CP(x1,x2,…,xn|c)P(c)cNB=argmaxc∈CP(cj)P(x|c)x∈X∏
+
+## Page 21
+
+Applying Multinomial Naive Bayes Classifiers to Text ClassificationcNB=argmaxcj∈CP(cj)P(xi|cj)i∈positions∏positions ¬ all word positions in test document        
+
+## Page 22
+
+Problems with multiplying lots of probsThere's a problem with this:Multiplying lots of probabilities can result in floating-point underflow!  .0006 * .0007 * .0009 * .01 * .5 * .000008….Idea:   Use logs, because  log(ab) = log(a) + log(b)  We'll sum logs of probabilities instead of multiplying probabilities!cNB=argmaxcj∈CP(cj)P(xi|cj)i∈positions∏
+
+## Page 23
+
+We actually do everything in log spaceInstead of this:This:Notes:1) Taking log doesn't change the ranking of classes! The class with highest probability also has highest log probability!2) It's a linear model: Just a max of a sum of weights: a linear function of the inputs So naive bayes is a linear classifier
+<latexit sha1_base64="o0LQfSf3I3G0xas3oLJOwQZR0GU=">AAACoXicbVFdaxQxFM2MH63r16qPggQXoSIsMwWxL0JpfdAHyypuW5gMQyZ7ZzZ2koxJRnaJ+V/+Dt/8N2Z2R6itF0IO597Dvffcsm24sUnyO4pv3Lx1e2f3zujuvfsPHo4fPT41qtMM5kw1Sp+X1EDDJcwttw2ctxqoKBs4Ky+O+/zZd9CGK/nFrlvIBa0lrzijNlDF+CdZQEWorgVdOSKoXarWES3wlvJ+REqouXTwTVKt6dqPWOGIhZV1J0fe47d4UBeOFV8Jl/jYY9JAZbPwqRrP9gL/Er/CxHSicLwvCZ1KtXKtMrwfw3jv/xavCv6jFxDN66XNMZFKdqIETUAuLk1RjCfJNNkEvg7SAUzQELNi/IssFOsESMsaakyWJq3NHdWWswbCnp2BlrILWkMWoKQCTO42Dnv8IjALXCkdnrR4w15WOCqMWYsyVPYemqu5nvxfLutsdZA7LtvOgmTbRlXXYKtwfy684BqYbdYBUKaDWwyzJdWU2XDU3oT06srXwen+NH09TT7tTw6PBjt20VP0HO2hFL1Bh+g9mqE5YtGz6F30MTqJJ/GHeBZ/3pbG0aB5gv6JOPsD0yvRAA==</latexit>cNB= argmaxcj2C24logP(cj)+Xi2positionslogP(xi|cj)35cNB=argmaxcj∈CP(cj)P(xi|cj)i∈positions∏
+
+## Page 24
+
+Text Classification and Naive BayesThe Naive Bayes Classifier
+
+## Page 25
+
+Text Classification and Naïve BayesNaive Bayes: Learning
+
+## Page 26
+
+Learning the Multinomial Naive Bayes ModelFirst attempt: maximum likelihood estimates◦simply use the frequencies in the dataSec.13.3
+ˆP(wi|cj)=count(wi,cj)count(w,cj)w∈V∑!𝑃𝑐!=𝑁"!𝑁#$#%&
+
+## Page 27
+
+Parameter estimationCreate mega-document for topic j by concatenating all docs in this topic◦Use frequency of w in mega-documentfraction of times word wi appears among all words in documents of topic cjˆP(wi|cj)=count(wi,cj)count(w,cj)w∈V∑
+
+## Page 28
+
+Problem with Maximum LikelihoodWhat if we have seen no training documents with the word fantastic and classified in the topic positive (thumbs-up)?Zero probabilities cannot be conditioned away, no matter the other evidence!ˆP("fantastic" positive) = count("fantastic", positive)count(w,positivew∈V∑) = 0cMAP=argmaxcˆP(c)ˆP(xi|c)i∏Sec.13.3
+
+## Page 29
+
+Laplace (add-1) smoothing for Naïve BayesˆP(wi|c)=count(wi,c)+1count(w,c)+1()w∈V∑=count(wi,c)+1count(w,cw∈V∑)#$%%&'(( + VˆP(wi|c)=count(wi,c)count(w,c)()w∈V∑
+
+## Page 30
+
+Multinomial Naïve Bayes: LearningCalculate P(cj) terms◦For each cj in C do docsj ¬ all docs with  class =cjP(wk|cj)←nk+αn+α|Vocabulary|P(cj)←|docsj||total # documents|•Calculate P(wk | cj) terms•Textj ¬ single doc containing all docsj•For each word wk in Vocabulary    nk ¬ # of occurrences of wk in Textj•From training corpus, extract Vocabulary
+
+## Page 31
+
+Unknown wordsWhat about unknown words◦that appear in our test data ◦but not in our training data or vocabulary?We ignore them◦Remove them from the test document!◦Pretend they weren't there!◦Don't include any probability for them at all!Why don't we build an unknown word model?◦It doesn't help: knowing which class has more unknown words is not generally helpful!
+
+## Page 32
+
+Stop wordsSome systems ignore stop words◦Stop words: very frequent words like the and a.◦Sort the vocabulary by word frequency in training set◦Call the top 10 or 50 words the stopword list.◦Remove all stop words from both training and test sets◦As if they were never there!But removing stop words doesn't usually help•So in practice most NB algorithms use all words and don't use stopword lists
+
+## Page 33
+
+Text Classification and Naive BayesNaive Bayes: Learning
+
+## Page 34
+
+Text Classification and Naive BayesSentiment and Binary Naive Bayes
+
+## Page 35
+
+Let's do a worked sentiment example!4.3•WORKED EXAMPLE74.3 Worked exampleLet’s walk through an example of training and testing naive Bayes with add-onesmoothing. We’ll use a sentiment analysis domain with the two classes positive(+) and negative (-), and take the following miniature training and test documentssimpliﬁed from actual movie reviews.CatDocumentsTraining-just plain boring-entirely predictable and lacks energy-no surprises and very few laughs+very powerful+the most fun ﬁlm of the summerTest?predictable with no funThe priorP(c)for the two classes is computed via Eq.4.11asNcNdoc:P( )=35P(+) =25The wordwithdoesn’t occur in the training set, so we drop it completely (asmentioned above, we don’t use unknown word models for naive Bayes). The like-lihoods from the training set for the remaining three words “predictable”, “no”, and“fun”, are as follows, from Eq.4.14(computing the probabilities for the remainderof the words in the training set is left as an exercise for the reader):P(“predictable”| )=1+114+20P(“predictable”|+) =0+19+20P(“no”| )=1+114+20P(“no”|+) =0+19+20P(“fun”| )=0+114+20P(“fun”|+) =1+19+20For the test sentence S = “predictable with no fun”, after removing the word ‘with’,the chosen class, via Eq.4.9, is therefore computed as follows:P( )P(S| )=35⇥2⇥2⇥1343=6.1⇥10 5P(+)P(S|+) =25⇥1⇥1⇥2293=3.2⇥10 5The model thus predicts the classnegativefor the test sentence.4.4 Optimizing for Sentiment AnalysisWhile standard naive Bayes text classiﬁcation can work well for sentiment analysis,some small changes are generally employed that improve performance.First, for sentiment classiﬁcation and a number of other text classiﬁcation tasks,whether a word occurs or not seems to matter more than its frequency. Thus itoften improves performance to clip the word counts in each document at 1 (seethe end of the chapter for pointers to these results). This variant is calledbinary
+
+## Page 36
+
+A worked sentiment example with add-1 smoothing4.3•WORKED EXAMPLE74.3 Worked exampleLet’s walk through an example of training and testing naive Bayes with add-onesmoothing. We’ll use a sentiment analysis domain with the two classes positive(+) and negative (-), and take the following miniature training and test documentssimpliﬁed from actual movie reviews.CatDocumentsTraining-just plain boring-entirely predictable and lacks energy-no surprises and very few laughs+very powerful+the most fun ﬁlm of the summerTest?predictable with no funThe priorP(c)for the two classes is computed via Eq.4.11asNcNdoc:P( )=35P(+) =25The wordwithdoesn’t occur in the training set, so we drop it completely (asmentioned above, we don’t use unknown word models for naive Bayes). The like-lihoods from the training set for the remaining three words “predictable”, “no”, and“fun”, are as follows, from Eq.4.14(computing the probabilities for the remainderof the words in the training set is left as an exercise for the reader):P(“predictable”| )=1+114+20P(“predictable”|+) =0+19+20P(“no”| )=1+114+20P(“no”|+) =0+19+20P(“fun”| )=0+114+20P(“fun”|+) =1+19+20For the test sentence S = “predictable with no fun”, after removing the word ‘with’,the chosen class, via Eq.4.9, is therefore computed as follows:P( )P(S| )=35⇥2⇥2⇥1343=6.1⇥10 5P(+)P(S|+) =25⇥1⇥1⇥2293=3.2⇥10 5The model thus predicts the classnegativefor the test sentence.4.4 Optimizing for Sentiment AnalysisWhile standard naive Bayes text classiﬁcation can work well for sentiment analysis,some small changes are generally employed that improve performance.First, for sentiment classiﬁcation and a number of other text classiﬁcation tasks,whether a word occurs or not seems to matter more than its frequency. Thus itoften improves performance to clip the word counts in each document at 1 (seethe end of the chapter for pointers to these results). This variant is calledbinary1. Prior from training:P(-) = 3/5P(+) = 2/52. Drop "with"4.3•WORKED EXAMPLE74.3 Worked exampleLet’s walk through an example of training and testing naive Bayes with add-onesmoothing. We’ll use a sentiment analysis domain with the two classes positive(+) and negative (-), and take the following miniature training and test documentssimpliﬁed from actual movie reviews.CatDocumentsTraining-just plain boring-entirely predictable and lacks energy-no surprises and very few laughs+very powerful+the most fun ﬁlm of the summerTest?predictable with no funThe priorP(c)for the two classes is computed via Eq.4.11asNcNdoc:P( )=35P(+) =25The wordwithdoesn’t occur in the training set, so we drop it completely (asmentioned above, we don’t use unknown word models for naive Bayes). The like-lihoods from the training set for the remaining three words “predictable”, “no”, and“fun”, are as follows, from Eq.4.14(computing the probabilities for the remainderof the words in the training set is left as an exercise for the reader):P(“predictable”| )=1+114+20P(“predictable”|+) =0+19+20P(“no”| )=1+114+20P(“no”|+) =0+19+20P(“fun”| )=0+114+20P(“fun”|+) =1+19+20For the test sentence S = “predictable with no fun”, after removing the word ‘with’,the chosen class, via Eq.4.9, is therefore computed as follows:P( )P(S| )=35⇥2⇥2⇥1343=6.1⇥10 5P(+)P(S|+) =25⇥1⇥1⇥2293=3.2⇥10 5The model thus predicts the classnegativefor the test sentence.4.4 Optimizing for Sentiment AnalysisWhile standard naive Bayes text classiﬁcation can work well for sentiment analysis,some small changes are generally employed that improve performance.First, for sentiment classiﬁcation and a number of other text classiﬁcation tasks,whether a word occurs or not seems to matter more than its frequency. Thus itoften improves performance to clip the word counts in each document at 1 (seethe end of the chapter for pointers to these results). This variant is calledbinary4.3•WORKED EXAMPLE74.3 Worked exampleLet’s walk through an example of training and testing naive Bayes with add-onesmoothing. We’ll use a sentiment analysis domain with the two classes positive(+) and negative (-), and take the following miniature training and test documentssimpliﬁed from actual movie reviews.CatDocumentsTraining-just plain boring-entirely predictable and lacks energy-no surprises and very few laughs+very powerful+the most fun ﬁlm of the summerTest?predictable with no funThe priorP(c)for the two classes is computed via Eq.4.11asNcNdoc:P( )=35P(+) =25The wordwithdoesn’t occur in the training set, so we drop it completely (asmentioned above, we don’t use unknown word models for naive Bayes). The like-lihoods from the training set for the remaining three words “predictable”, “no”, and“fun”, are as follows, from Eq.4.14(computing the probabilities for the remainderof the words in the training set is left as an exercise for the reader):P(“predictable”| )=1+114+20P(“predictable”|+) =0+19+20P(“no”| )=1+114+20P(“no”|+) =0+19+20P(“fun”| )=0+114+20P(“fun”|+) =1+19+20For the test sentence S = “predictable with no fun”, after removing the word ‘with’,the chosen class, via Eq.4.9, is therefore computed as follows:P( )P(S| )=35⇥2⇥2⇥1343=6.1⇥10 5P(+)P(S|+) =25⇥1⇥1⇥2293=3.2⇥10 5The model thus predicts the classnegativefor the test sentence.4.4 Optimizing for Sentiment AnalysisWhile standard naive Bayes text classiﬁcation can work well for sentiment analysis,some small changes are generally employed that improve performance.First, for sentiment classiﬁcation and a number of other text classiﬁcation tasks,whether a word occurs or not seems to matter more than its frequency. Thus itoften improves performance to clip the word counts in each document at 1 (seethe end of the chapter for pointers to these results). This variant is calledbinary3. Likelihoods from training:4. Scoring the test set:𝑝𝑤!𝑐=𝑐𝑜𝑢𝑛𝑡𝑤!,𝑐+1∑"∈$𝑐𝑜𝑢𝑛𝑡𝑤,𝑐+|𝑉|/𝑃𝑐%=𝑁&!𝑁'(')*
+
+## Page 37
+
+Optimizing for sentiment analysisFor tasks like sentiment, word occurrence seems to be more important than word frequency.◦The occurrence of the word fantastic tells us a lot◦The fact that it occurs 5 times may not tell us much more.Binary multinominal naive bayes, or binary NB◦Clip our word counts at 1◦Note: this is different than Bernoulli naive bayes; see the textbook at the end of the chapter.
+
+## Page 38
+
+Binary Multinomial Naïve Bayes: LearningCalculate P(cj) terms◦For each cj in C do docsj ¬ all docs with  class =cjP(cj)←|docsj||total # documents|P(wk|cj)←nk+αn+α|Vocabulary|•Textj ¬ single doc containing all docsj•For each word wk in Vocabulary    nk ¬ # of occurrences of wk in Textj•From training corpus, extract Vocabulary•Calculate P(wk | cj) terms•Remove duplicates in each doc:•For each word type w in docj  •Retain only a single instance of w
+
+## Page 39
+
+Binary Multinomial Naive Bayes on a test document d
+39First remove all duplicate words from dThen compute NB using the same equation: cNB=argmaxcj∈CP(cj)P(wi|cj)i∈positions∏
+
+## Page 40
+
+Binary multinominal naive Bayes8CHAPTER4•NAIVEBAYES ANDSENTIMENTCLASSIFICATIONmultinomial naive Bayesorbinary NB. The variant uses the same Eq.4.10exceptbinary NBthat for each document we remove all duplicate words before concatenating theminto the single big document. Fig.4.3shows an example in which a set of fourdocuments (shortened and text-normalized for this example) are remapped to binary,with the modiﬁed counts shown in the table on the right. The example is workedwithout add-1 smoothing to make the differences clearer. Note that the results countsneed not be 1; the wordgreathas a count of 2 even for Binary NB, because it appearsin multiple documents.Four original documents: it was pathetic the worst part was theboxing scenes no plot twists or great scenes+and satire and great plot twists+great scenes great ﬁlmAfter per-document binarization: it was pathetic the worst part boxingscenes no plot twists or great scenes+and satire great plot twists+great scenes ﬁlmNB BinaryCounts Counts+ + and2010boxing 0 1 0 1ﬁlm 1 0 1 0great3121it 0 1 0 1no 0 1 0 1or 0 1 0 1part 0 1 0 1pathetic 0 1 0 1plot 1 1 1 1satire 1 0 1 0scenes 1 2 1 2the0201twists 1 1 1 1was0201worst 0 1 0 1Figure 4.3An example of binarization for the binary naive Bayes algorithm.A second important addition commonly made when doing text classiﬁcation forsentiment is to deal with negation. Consider the difference betweenI really like thismovie(positive) andI didn’t like this movie(negative). The negation expressed bydidn’tcompletely alters the inferences we draw from the predicatelike. Similarly,negation can modify a negative word to produce a positive review (don’t dismiss thisﬁlm,doesn’t let us get bored).A very simple baseline that is commonly used in sentiment analysis to deal withnegation is the following: during text normalization, prepend the preﬁxNOTtoevery word after a token of logical negation (n’t, not, no, never) until the next punc-tuation mark. Thus the phrasedidn’t like this movie , but Ibecomesdidn’t NOT_like NOT_this NOT_movie , but INewly formed ‘words’ likeNOTlike,NOTrecommendwill thus occur more of-ten in negative document and act as cues for negative sentiment, while words likeNOTbored,NOTdismisswill acquire positive associations. We will return in Chap-ter 16 to the use of parsing to deal more accurately with the scope relationship be-tween these negation words and the predicates they modify, but this simple baselineworks quite well in practice.Finally, in some situations we might have insufﬁcient labeled training data totrain accurate naive Bayes classiﬁers using all words in the training set to estimatepositive and negative sentiment. In such cases we can instead derive the positive
+
+## Page 41
+
+Binary multinominal naive Bayes8CHAPTER4•NAIVEBAYES ANDSENTIMENTCLASSIFICATIONmultinomial naive Bayesorbinary NB. The variant uses the same Eq.4.10exceptbinary NBthat for each document we remove all duplicate words before concatenating theminto the single big document. Fig.4.3shows an example in which a set of fourdocuments (shortened and text-normalized for this example) are remapped to binary,with the modiﬁed counts shown in the table on the right. The example is workedwithout add-1 smoothing to make the differences clearer. Note that the results countsneed not be 1; the wordgreathas a count of 2 even for Binary NB, because it appearsin multiple documents.Four original documents: it was pathetic the worst part was theboxing scenes no plot twists or great scenes+and satire and great plot twists+great scenes great ﬁlmAfter per-document binarization: it was pathetic the worst part boxingscenes no plot twists or great scenes+and satire great plot twists+great scenes ﬁlmNB BinaryCounts Counts+ + and2010boxing 0 1 0 1ﬁlm 1 0 1 0great3121it 0 1 0 1no 0 1 0 1or 0 1 0 1part 0 1 0 1pathetic 0 1 0 1plot 1 1 1 1satire 1 0 1 0scenes 1 2 1 2the0201twists 1 1 1 1was0201worst 0 1 0 1Figure 4.3An example of binarization for the binary naive Bayes algorithm.A second important addition commonly made when doing text classiﬁcation forsentiment is to deal with negation. Consider the difference betweenI really like thismovie(positive) andI didn’t like this movie(negative). The negation expressed bydidn’tcompletely alters the inferences we draw from the predicatelike. Similarly,negation can modify a negative word to produce a positive review (don’t dismiss thisﬁlm,doesn’t let us get bored).A very simple baseline that is commonly used in sentiment analysis to deal withnegation is the following: during text normalization, prepend the preﬁxNOTtoevery word after a token of logical negation (n’t, not, no, never) until the next punc-tuation mark. Thus the phrasedidn’t like this movie , but Ibecomesdidn’t NOT_like NOT_this NOT_movie , but INewly formed ‘words’ likeNOTlike,NOTrecommendwill thus occur more of-ten in negative document and act as cues for negative sentiment, while words likeNOTbored,NOTdismisswill acquire positive associations. We will return in Chap-ter 16 to the use of parsing to deal more accurately with the scope relationship be-tween these negation words and the predicates they modify, but this simple baselineworks quite well in practice.Finally, in some situations we might have insufﬁcient labeled training data totrain accurate naive Bayes classiﬁers using all words in the training set to estimatepositive and negative sentiment. In such cases we can instead derive the positive
+
+## Page 42
+
+Binary multinominal naive Bayes8CHAPTER4•NAIVEBAYES ANDSENTIMENTCLASSIFICATIONmultinomial naive Bayesorbinary NB. The variant uses the same Eq.4.10exceptbinary NBthat for each document we remove all duplicate words before concatenating theminto the single big document. Fig.4.3shows an example in which a set of fourdocuments (shortened and text-normalized for this example) are remapped to binary,with the modiﬁed counts shown in the table on the right. The example is workedwithout add-1 smoothing to make the differences clearer. Note that the results countsneed not be 1; the wordgreathas a count of 2 even for Binary NB, because it appearsin multiple documents.Four original documents: it was pathetic the worst part was theboxing scenes no plot twists or great scenes+and satire and great plot twists+great scenes great ﬁlmAfter per-document binarization: it was pathetic the worst part boxingscenes no plot twists or great scenes+and satire great plot twists+great scenes ﬁlmNB BinaryCounts Counts+ + and2010boxing 0 1 0 1ﬁlm 1 0 1 0great3121it 0 1 0 1no 0 1 0 1or 0 1 0 1part 0 1 0 1pathetic 0 1 0 1plot 1 1 1 1satire 1 0 1 0scenes 1 2 1 2the0201twists 1 1 1 1was0201worst 0 1 0 1Figure 4.3An example of binarization for the binary naive Bayes algorithm.A second important addition commonly made when doing text classiﬁcation forsentiment is to deal with negation. Consider the difference betweenI really like thismovie(positive) andI didn’t like this movie(negative). The negation expressed bydidn’tcompletely alters the inferences we draw from the predicatelike. Similarly,negation can modify a negative word to produce a positive review (don’t dismiss thisﬁlm,doesn’t let us get bored).A very simple baseline that is commonly used in sentiment analysis to deal withnegation is the following: during text normalization, prepend the preﬁxNOTtoevery word after a token of logical negation (n’t, not, no, never) until the next punc-tuation mark. Thus the phrasedidn’t like this movie , but Ibecomesdidn’t NOT_like NOT_this NOT_movie , but INewly formed ‘words’ likeNOTlike,NOTrecommendwill thus occur more of-ten in negative document and act as cues for negative sentiment, while words likeNOTbored,NOTdismisswill acquire positive associations. We will return in Chap-ter 16 to the use of parsing to deal more accurately with the scope relationship be-tween these negation words and the predicates they modify, but this simple baselineworks quite well in practice.Finally, in some situations we might have insufﬁcient labeled training data totrain accurate naive Bayes classiﬁers using all words in the training set to estimatepositive and negative sentiment. In such cases we can instead derive the positive
+
+## Page 43
+
+Binary multinominal naive Bayes8CHAPTER4•NAIVEBAYES ANDSENTIMENTCLASSIFICATIONmultinomial naive Bayesorbinary NB. The variant uses the same Eq.4.10exceptbinary NBthat for each document we remove all duplicate words before concatenating theminto the single big document. Fig.4.3shows an example in which a set of fourdocuments (shortened and text-normalized for this example) are remapped to binary,with the modiﬁed counts shown in the table on the right. The example is workedwithout add-1 smoothing to make the differences clearer. Note that the results countsneed not be 1; the wordgreathas a count of 2 even for Binary NB, because it appearsin multiple documents.Four original documents: it was pathetic the worst part was theboxing scenes no plot twists or great scenes+and satire and great plot twists+great scenes great ﬁlmAfter per-document binarization: it was pathetic the worst part boxingscenes no plot twists or great scenes+and satire great plot twists+great scenes ﬁlmNB BinaryCounts Counts+ + and2010boxing 0 1 0 1ﬁlm 1 0 1 0great3121it 0 1 0 1no 0 1 0 1or 0 1 0 1part 0 1 0 1pathetic 0 1 0 1plot 1 1 1 1satire 1 0 1 0scenes 1 2 1 2the0201twists 1 1 1 1was0201worst 0 1 0 1Figure 4.3An example of binarization for the binary naive Bayes algorithm.A second important addition commonly made when doing text classiﬁcation forsentiment is to deal with negation. Consider the difference betweenI really like thismovie(positive) andI didn’t like this movie(negative). The negation expressed bydidn’tcompletely alters the inferences we draw from the predicatelike. Similarly,negation can modify a negative word to produce a positive review (don’t dismiss thisﬁlm,doesn’t let us get bored).A very simple baseline that is commonly used in sentiment analysis to deal withnegation is the following: during text normalization, prepend the preﬁxNOTtoevery word after a token of logical negation (n’t, not, no, never) until the next punc-tuation mark. Thus the phrasedidn’t like this movie , but Ibecomesdidn’t NOT_like NOT_this NOT_movie , but INewly formed ‘words’ likeNOTlike,NOTrecommendwill thus occur more of-ten in negative document and act as cues for negative sentiment, while words likeNOTbored,NOTdismisswill acquire positive associations. We will return in Chap-ter 16 to the use of parsing to deal more accurately with the scope relationship be-tween these negation words and the predicates they modify, but this simple baselineworks quite well in practice.Finally, in some situations we might have insufﬁcient labeled training data totrain accurate naive Bayes classiﬁers using all words in the training set to estimatepositive and negative sentiment. In such cases we can instead derive the positiveCounts can still be 2! Binarization is within-doc!
+
+## Page 44
+
+Text Classification and Naive BayesSentiment and Binary Naive Bayes
+
+## Page 45
+
+Text Classification and Naive BayesMore on Sentiment Classification
+
+## Page 46
+
+Sentiment Classification: Dealing with NegationI really like this movieI really don't like this movieNegation changes the meaning of "like" to negative.Negation can also change negative to positive-ish ◦Don't dismiss this film◦Doesn't let us get bored
+
+## Page 47
+
+Sentiment Classification: Dealing with NegationSimple baseline method:Add NOT_ to every word between negation and following punctuation:didn’t like this movie , but Ididn’t NOT_like NOT_this NOT_movie but I
+Das, Sanjiv and Mike Chen. 2001. Yahoo! for Amazon: Extracting market sentiment from stock message boards. In Proceedings of the Asia Pacific Finance Association Annual Conference (APFA).Bo Pang, Lillian Lee, and Shivakumar Vaithyanathan.  2002.  Thumbs up? Sentiment Classification using Machine Learning Techniques. EMNLP-2002, 79—86.
+
+## Page 48
+
+Sentiment Classification: LexiconsSometimes we don't have enough labeled training dataIn that case, we can make use of pre-built word listsCalled lexiconsThere are various publically available lexicons
+
+## Page 49
+
+MPQA Subjectivity Cues LexiconHome page: https://mpqa.cs.pitt.edu/lexicons/subj_lexicon/6885 words from 8221 lemmas, annotated for intensity (strong/weak)◦2718 positive◦4912 negative+ : admirable, beautiful, confident, dazzling, ecstatic, favor, glee, great − : awful, bad, bias, catastrophe, cheat, deny, envious, foul, harsh, hate 49TheresaWilson, JanyceWiebe, and Paul Hoffmann (2005). RecognizingContextualPolarityin Phrase-Level SentimentAnalysis. Proc. of HLT-EMNLP-2005.Riloff and Wiebe (2003). Learning extraction patterns for subjective expressions. EMNLP-2003.
+
+## Page 50
+
+The General Inquirer◦Home page: http://www.wjh.harvard.edu/~inquirer◦List of Categories:  http://www.wjh.harvard.edu/~inquirer/homecat.htm◦Spreadsheet: http://www.wjh.harvard.edu/~inquirer/inquirerbasic.xlsCategories:◦Positiv (1915 words) and Negativ (2291 words)◦Strong vs Weak, Active vs Passive, Overstated versus Understated◦Pleasure, Pain, Virtue, Vice, Motivation, Cognitive Orientation, etcFree for Research UsePhilip J. Stone, Dexter C Dunphy, Marshall S. Smith, Daniel M. Ogilvie. 1966. The General Inquirer: A Computer Approach to Content Analysis. MIT Press
+
+## Page 51
+
+Using Lexicons in Sentiment ClassificationAdd a feature that gets a count whenever a word from the lexicon occurs◦E.g., a feature called "this word occurs in the positive lexicon" or "this word occurs in the negative lexicon"Now all positive words (good, great, beautiful, wonderful) or negative words count for that feature.Using 1-2 features isn't as good as using all the words.•But when training data is sparse or not representative of the test set, dense lexicon features can help
+
+## Page 52
+
+Naive Bayes in Other tasks: Spam FilteringSpamAssassin Features:◦Mentions millions of (dollar) ((dollar) NN,NNN,NNN.NN)◦From: starts with many numbers◦Subject is all capitals◦HTML has a low ratio of text to image area◦"One hundred percent guaranteed"◦Claims you can be removed from the list
+
+## Page 53
+
+Naive Bayes in Language IDDetermining what language a piece of text is written in.Features based on character n-grams do very wellImportant to train on lots of varieties of each language(e.g., American English varieties like African-American English, or English varieties around the world like Indian English)
+
+## Page 54
+
+Summary: Naive Bayes is Not So NaiveVery Fast, low storage requirementsWork well with very small amounts of training dataRobust to Irrelevant Features Irrelevant Features cancel each other without affecting resultsVery good in domains with many equally important features Decision Trees suffer from fragmentation in such cases – especially if little dataOptimal if the independence assumptions hold: If assumed independence is correct, then it is the Bayes Optimal Classifier for problemA good dependable baseline for text classification◦But we will see other classifiers that give better accuracySlide from Chris Manning
+
+## Page 55
+
+Text Classification and Naive BayesMore on Sentiment Classification
+
+## Page 56
+
+Text Classification and Naïve BayesNaïve Bayes: Relationship to Language Modeling
+
+## Page 57
+
+Dan JurafskyGenerative Model for Multinomial Naïve Bayes
+57c=ChinaX1=ShanghaiX2=andX3=ShenzhenX4=issueX5=bonds
+
+## Page 58
+
+Dan JurafskyNaïve Bayes and Language Modeling•Naïve bayes classifiers can use any sort of feature•URL, email address, dictionaries, network features•But if, as in the previous slides•We use only word features •we use all of the words in the text (not a subset)•Then •Naïve bayes has an important similarity to language modeling.58
+
+## Page 59
+
+Dan JurafskyEach class = a unigram language model•Assigning each word: P(word | c)•Assigning each sentence: P(s|c)=Π P(word|c)0.1 I0.1 love0.01 this0.05 fun0.1 film…Ilovethisfunfilm0.10.1.050.010.1Class posP(s | pos) = 0.0000005 Sec.13.2.1
+
+## Page 60
+
+Dan JurafskyNaïve Bayes as a Language Model•Which class assigns the higher probability to s?0.1 I0.1 love0.01 this0.05 fun0.1 filmModel posModel negfilmlovethisfunI0.10.10.010.050.10.10.0010.010.0050.2P(s|pos)  >  P(s|neg)0.2 I0.001 love0.01 this0.005 fun0.1 filmSec.13.2.1
+
+## Page 61
+
+Text Classification and Naïve BayesNaïve Bayes: Relationship to Language Modeling
+
+## Page 62
+
+Text Classification and Naive BayesPrecision, Recall, and F1
+
+## Page 63
+
+Evaluating Classifiers: How well does our classifier work?Let's first address binary classifiers:•Is this email spam? spam (+)     or   not spam (-)•Is this post about Delicious Pie Company? about Del. Pie Co (+)   or    not about Del. Pie Co(-)We'll need to know1.What did our classifier say about each email or post?2.What should our classifier have said, i.e.,  the correct answer, usually as defined by humans ("gold label")
+
+## Page 64
+
+First step in evaluation: The confusion matrixtrue positivefalse negativefalse positivetrue negativegold positivegold negativesystempositivesystemnegativegold standard labelssystemoutputlabelsrecall = tptp+fnprecision = tptp+fpaccuracy = tp+tntp+fp+tn+fn
+
+## Page 65
+
+Accuracy on the confusion matrixtrue positivefalse negativefalse positivetrue negativegold positivegold negativesystempositivesystemnegativegold standard labelssystemoutputlabelsrecall = tptp+fnprecision = tptp+fpaccuracy = tp+tntp+fp+tn+fn
+
+## Page 66
+
+Why don't we use accuracy?Accuracy doesn't work well when we're dealing with uncommon or imbalanced classesSuppose we look at 1,000,000 social media posts to find Delicious Pie-lovers (or haters)•100 of them talk about our pie•999,900 are posts about something unrelatedImagine the following simple classifier Every post is "not about pie"
+
+## Page 67
+
+Accuracy re: pie poststrue positivefalse negativefalse positivetrue negativegold positivegold negativesystempositivesystemnegativegold standard labelssystemoutputlabelsrecall = tptp+fnprecision = tptp+fpaccuracy = tp+tntp+fp+tn+fn100 posts are about pie; 999,900 aren't
+
+## Page 68
+
+Why don't we use accuracy?Accuracy of our "nothing is pie" classifier 999,900 true negatives  and 100 false negatives Accuracy is 999,900/1,000,000 = 99.99%! But useless at finding pie-lovers (or haters)!! Which was our goal!Accuracy doesn't work well for unbalanced classes  Most tweets are not about pie!
+
+## Page 69
+
+Instead of accuracy we use precision and recalltrue positivefalse negativefalse positivetrue negativegold positivegold negativesystempositivesystemnegativegold standard labelssystemoutputlabelsrecall = tptp+fnprecision = tptp+fpaccuracy = tp+tntp+fp+tn+fnPrecision: % of selected items that are correctRecall: % of correct items that are selected
+
+## Page 70
+
+Precision/Recall aren't fooled by the"just call everything negative" classifier!Stupid classifier: Just say no: every tweet is "not about pie"•100 tweets  talk about pie,   999,900 tweets don't•Accuracy = 999,900/1,000,000 = 99.99%But the Recall and Precision for this classifier are terrible:12CHAPTER4•NAIVEBAYES,TEXTCLASSIFICATION,ANDSENTIMENTwhile the other 999,900 are tweets about something completely unrelated. Imagine asimple classiﬁer that stupidly classiﬁed every tweet as “not about pie”. This classiﬁerwould have 999,900 true negatives and only 100 false negatives for an accuracy of999,900/1,000,000 or 99.99%! What an amazing accuracy level! Surely we shouldbe happy with this classiﬁer? But of course this fabulous ‘no pie’ classiﬁer wouldbe completely useless, since it wouldn’t ﬁnd a single one of the customer commentswe are looking for. In other words, accuracy is not a good metric when the goal isto discover something that is rare, or at least not completely balanced in frequency,which is a very common situation in the world.That’s why instead of accuracy we generally turn to two other metrics shown inFig.4.4:precisionandrecall.Precisionmeasures the percentage of the items thatprecisionthe system detected (i.e., the system labeled as positive) that are in fact positive (i.e.,are positive according to the human gold labels). Precision is deﬁned asPrecision=true positivestrue positives + false positivesRecallmeasures the percentage of items actually present in the input that wererecallcorrectly identiﬁed by the system. Recall is deﬁned asRecall=true positivestrue positives + false negativesPrecision and recall will help solve the problem with the useless “nothing ispie” classiﬁer. This classiﬁer, despite having a fabulous accuracy of 99.99%, hasa terrible recall of 0 (since there are no true positives, and 100 false negatives, therecall is 0/100). You should convince yourself that the precision at ﬁnding relevanttweets is equally problematic. Thus precision and recall, unlike accuracy, emphasizetrue positives: ﬁnding the things that we are supposed to be looking for.There are many ways to deﬁne a single metric that incorporates aspects of bothprecision and recall. The simplest of these combinations is theF-measure(vanF-measureRijsbergen,1975) , deﬁned as:Fb=(b2+1)PRb2P+RThebparameter differentially weights the importance of recall and precision,based perhaps on the needs of an application. Values ofb>1 favor recall, whilevalues ofb<1 favor precision. Whenb=1, precision and recall are equally bal-anced; this is the most frequently used metric, and is called Fb=1or just F1:F1F1=2PRP+R(4.16)F-measure comes from a weighted harmonic mean of precision and recall. Theharmonic mean of a set of numbers is the reciprocal of the arithmetic mean of recip-rocals:HarmonicMean(a1,a2,a3,a4,...,an)=n1a1+1a2+1a3+...+1an(4.17)and hence F-measure isF=1a1P+(1 a)1Ror✓withb2=1 aa◆F=(b2+1)PRb2P+R(4.18)12CHAPTER4•NAIVEBAYES,TEXTCLASSIFICATION,ANDSENTIMENTwhile the other 999,900 are tweets about something completely unrelated. Imagine asimple classiﬁer that stupidly classiﬁed every tweet as “not about pie”. This classiﬁerwould have 999,900 true negatives and only 100 false negatives for an accuracy of999,900/1,000,000 or 99.99%! What an amazing accuracy level! Surely we shouldbe happy with this classiﬁer? But of course this fabulous ‘no pie’ classiﬁer wouldbe completely useless, since it wouldn’t ﬁnd a single one of the customer commentswe are looking for. In other words, accuracy is not a good metric when the goal isto discover something that is rare, or at least not completely balanced in frequency,which is a very common situation in the world.That’s why instead of accuracy we generally turn to two other metrics shown inFig.4.4:precisionandrecall.Precisionmeasures the percentage of the items thatprecisionthe system detected (i.e., the system labeled as positive) that are in fact positive (i.e.,are positive according to the human gold labels). Precision is deﬁned asPrecision=true positivestrue positives + false positivesRecallmeasures the percentage of items actually present in the input that wererecallcorrectly identiﬁed by the system. Recall is deﬁned asRecall=true positivestrue positives + false negativesPrecision and recall will help solve the problem with the useless “nothing ispie” classiﬁer. This classiﬁer, despite having a fabulous accuracy of 99.99%, hasa terrible recall of 0 (since there are no true positives, and 100 false negatives, therecall is 0/100). You should convince yourself that the precision at ﬁnding relevanttweets is equally problematic. Thus precision and recall, unlike accuracy, emphasizetrue positives: ﬁnding the things that we are supposed to be looking for.There are many ways to deﬁne a single metric that incorporates aspects of bothprecision and recall. The simplest of these combinations is theF-measure(vanF-measureRijsbergen,1975) , deﬁned as:Fb=(b2+1)PRb2P+RThebparameter differentially weights the importance of recall and precision,based perhaps on the needs of an application. Values ofb>1 favor recall, whilevalues ofb<1 favor precision. Whenb=1, precision and recall are equally bal-anced; this is the most frequently used metric, and is called Fb=1or just F1:F1F1=2PRP+R(4.16)F-measure comes from a weighted harmonic mean of precision and recall. Theharmonic mean of a set of numbers is the reciprocal of the arithmetic mean of recip-rocals:HarmonicMean(a1,a2,a3,a4,...,an)=n1a1+1a2+1a3+...+1an(4.17)and hence F-measure isF=1a1P+(1 a)1Ror✓withb2=1 aa◆F=(b2+1)PRb2P+R(4.18)
+
+## Page 71
+
+A combined measure: F1F1 is a  combination of precision and recall.12CHAPTER4•NAIVEBAYES,TEXTCLASSIFICATION,ANDSENTIMENTwhile the other 999,900 are tweets about something completely unrelated. Imagine asimple classiﬁer that stupidly classiﬁed every tweet as “not about pie”. This classiﬁerwould have 999,900 true negatives and only 100 false negatives for an accuracy of999,900/1,000,000 or 99.99%! What an amazing accuracy level! Surely we shouldbe happy with this classiﬁer? But of course this fabulous ‘no pie’ classiﬁer wouldbe completely useless, since it wouldn’t ﬁnd a single one of the customer commentswe are looking for. In other words, accuracy is not a good metric when the goal isto discover something that is rare, or at least not completely balanced in frequency,which is a very common situation in the world.That’s why instead of accuracy we generally turn to two other metrics shown inFig.4.4:precisionandrecall.Precisionmeasures the percentage of the items thatprecisionthe system detected (i.e., the system labeled as positive) that are in fact positive (i.e.,are positive according to the human gold labels). Precision is deﬁned asPrecision=true positivestrue positives + false positivesRecallmeasures the percentage of items actually present in the input that wererecallcorrectly identiﬁed by the system. Recall is deﬁned asRecall=true positivestrue positives + false negativesPrecision and recall will help solve the problem with the useless “nothing ispie” classiﬁer. This classiﬁer, despite having a fabulous accuracy of 99.99%, hasa terrible recall of 0 (since there are no true positives, and 100 false negatives, therecall is 0/100). You should convince yourself that the precision at ﬁnding relevanttweets is equally problematic. Thus precision and recall, unlike accuracy, emphasizetrue positives: ﬁnding the things that we are supposed to be looking for.There are many ways to deﬁne a single metric that incorporates aspects of bothprecision and recall. The simplest of these combinations is theF-measure(vanF-measureRijsbergen,1975) , deﬁned as:Fb=(b2+1)PRb2P+RThebparameter differentially weights the importance of recall and precision,based perhaps on the needs of an application. Values ofb>1 favor recall, whilevalues ofb<1 favor precision. Whenb=1, precision and recall are equally bal-anced; this is the most frequently used metric, and is called Fb=1or just F1:F1F1=2PRP+R(4.16)F-measure comes from a weighted harmonic mean of precision and recall. Theharmonic mean of a set of numbers is the reciprocal of the arithmetic mean of recip-rocals:HarmonicMean(a1,a2,a3,a4,...,an)=n1a1+1a2+1a3+...+1an(4.17)and hence F-measure isF=1a1P+(1 a)1Ror✓withb2=1 aa◆F=(b2+1)PRb2P+R(4.18)
+
+## Page 72
+
+F1 is a special case of the general "F-measure"F-measure is the (weighted) harmonic mean of precision and recallF1 is a special case of F-measure with β=1, α=½12CHAPTER4•NAIVEBAYES,TEXTCLASSIFICATION,ANDSENTIMENTwhile the other 999,900 are tweets about something completely unrelated. Imagine asimple classiﬁer that stupidly classiﬁed every tweet as “not about pie”. This classiﬁerwould have 999,900 true negatives and only 100 false negatives for an accuracy of999,900/1,000,000 or 99.99%! What an amazing accuracy level! Surely we shouldbe happy with this classiﬁer? But of course this fabulous ‘no pie’ classiﬁer wouldbe completely useless, since it wouldn’t ﬁnd a single one of the customer commentswe are looking for. In other words, accuracy is not a good metric when the goal isto discover something that is rare, or at least not completely balanced in frequency,which is a very common situation in the world.That’s why instead of accuracy we generally turn to two other metrics shown inFig.4.4:precisionandrecall.Precisionmeasures the percentage of the items thatprecisionthe system detected (i.e., the system labeled as positive) that are in fact positive (i.e.,are positive according to the human gold labels). Precision is deﬁned asPrecision=true positivestrue positives + false positivesRecallmeasures the percentage of items actually present in the input that wererecallcorrectly identiﬁed by the system. Recall is deﬁned asRecall=true positivestrue positives + false negativesPrecision and recall will help solve the problem with the useless “nothing ispie” classiﬁer. This classiﬁer, despite having a fabulous accuracy of 99.99%, hasa terrible recall of 0 (since there are no true positives, and 100 false negatives, therecall is 0/100). You should convince yourself that the precision at ﬁnding relevanttweets is equally problematic. Thus precision and recall, unlike accuracy, emphasizetrue positives: ﬁnding the things that we are supposed to be looking for.There are many ways to deﬁne a single metric that incorporates aspects of bothprecision and recall. The simplest of these combinations is theF-measure(vanF-measureRijsbergen,1975) , deﬁned as:Fb=(b2+1)PRb2P+RThebparameter differentially weights the importance of recall and precision,based perhaps on the needs of an application. Values ofb>1 favor recall, whilevalues ofb<1 favor precision. Whenb=1, precision and recall are equally bal-anced; this is the most frequently used metric, and is called Fb=1or just F1:F1F1=2PRP+R(4.16)F-measure comes from a weighted harmonic mean of precision and recall. Theharmonic mean of a set of numbers is the reciprocal of the arithmetic mean of recip-rocals:HarmonicMean(a1,a2,a3,a4,...,an)=n1a1+1a2+1a3+...+1an(4.17)and hence F-measure isF=1a1P+(1 a)1Ror✓withb2=1 aa◆F=(b2+1)PRb2P+R(4.18)12CHAPTER4•NAIVEBAYES,TEXTCLASSIFICATION,ANDSENTIMENTwhile the other 999,900 are tweets about something completely unrelated. Imagine asimple classiﬁer that stupidly classiﬁed every tweet as “not about pie”. This classiﬁerwould have 999,900 true negatives and only 100 false negatives for an accuracy of999,900/1,000,000 or 99.99%! What an amazing accuracy level! Surely we shouldbe happy with this classiﬁer? But of course this fabulous ‘no pie’ classiﬁer wouldbe completely useless, since it wouldn’t ﬁnd a single one of the customer commentswe are looking for. In other words, accuracy is not a good metric when the goal isto discover something that is rare, or at least not completely balanced in frequency,which is a very common situation in the world.That’s why instead of accuracy we generally turn to two other metrics shown inFig.4.4:precisionandrecall.Precisionmeasures the percentage of the items thatprecisionthe system detected (i.e., the system labeled as positive) that are in fact positive (i.e.,are positive according to the human gold labels). Precision is deﬁned asPrecision=true positivestrue positives + false positivesRecallmeasures the percentage of items actually present in the input that wererecallcorrectly identiﬁed by the system. Recall is deﬁned asRecall=true positivestrue positives + false negativesPrecision and recall will help solve the problem with the useless “nothing ispie” classiﬁer. This classiﬁer, despite having a fabulous accuracy of 99.99%, hasa terrible recall of 0 (since there are no true positives, and 100 false negatives, therecall is 0/100). You should convince yourself that the precision at ﬁnding relevanttweets is equally problematic. Thus precision and recall, unlike accuracy, emphasizetrue positives: ﬁnding the things that we are supposed to be looking for.There are many ways to deﬁne a single metric that incorporates aspects of bothprecision and recall. The simplest of these combinations is theF-measure(vanF-measureRijsbergen,1975) , deﬁned as:Fb=(b2+1)PRb2P+RThebparameter differentially weights the importance of recall and precision,based perhaps on the needs of an application. Values ofb>1 favor recall, whilevalues ofb<1 favor precision. Whenb=1, precision and recall are equally bal-anced; this is the most frequently used metric, and is called Fb=1or just F1:F1F1=2PRP+R(4.16)F-measure comes from a weighted harmonic mean of precision and recall. Theharmonic mean of a set of numbers is the reciprocal of the arithmetic mean of recip-rocals:HarmonicMean(a1,a2,a3,a4,...,an)=n1a1+1a2+1a3+...+1an(4.17)and hence F-measure isF=1a1P+(1 a)1Ror✓withb2=1 aa◆F=(b2+1)PRb2P+R(4.18)
+
+## Page 73
+
+Suppose we have more than 2 classes?Lots of text classification tasks have more than two classes.◦Sentiment analysis (positive, negative, neutral) , named entities (person, location, organization)We can define precision and recall for multiple classes like this 3-way email task:851060urgentnormalgold labelssystemoutputrecallu = 88+5+3precisionu= 88+10+115030200spamurgentnormalspam3recalln = recalls = precisionn= 605+60+50precisions= 2003+30+2006010+60+302001+50+200
+
+## Page 74
+
+How to combine P/R values for different classes:Microaveraging vs Macroaveraging8811340trueurgenttruenotsystemurgentsystemnot604055212truenormaltruenotsystemnormalsystemnot200513383truespamtruenotsystemspamsystemnot2689999635trueyestruenosystemyessystemnoprecision =8+118= .42precision =200+33200= .86precision =60+5560= .52microaverageprecision268+99268= .73=macroaverageprecision3.42+.52+.86= .60=PooledClass 3: SpamClass 2: NormalClass 1: Urgent
+
+## Page 75
+
+Text Classification and Naive BayesPrecision, Recall, and F1
+
+## Page 76
+
+Text Classification and Naive BayesAvoiding Harms in Classification
+
+## Page 77
+
+Harms of classificationClassifiers, like any NLP algorithm, can cause harmsThis is true for any classifier, whether Naive Bayes or other algorithms
+
+## Page 78
+
+Representational Harms•Harms caused by a system that demeans a social group•Such as by perpetuating negative stereotypes about them. •Kiritchenko and Mohammad 2018 study•Examined 200 sentiment analysis systems on pairs of sentences•Identical except for names:•common African American (Shaniqua) or European American (Stephanie).•Like "I talked to Shaniqua yesterday" vs "I talked to Stephanie yesterday"•Result: systems assigned lower sentiment and more negative emotion to sentences with African American names•Downstream harm: •Perpetuates stereotypes about African Americans •African Americans treated differently by NLP tools like sentiment (widely used in marketing research, mental health studies, etc.)
+
+## Page 79
+
+Harms of Censorship•Toxicity detection is the text classification task of detecting hate speech, abuse, harassment, or other kinds of toxic language.•Widely used in online content moderation•Toxicity classifiers incorrectly flag non-toxic sentences that simply mention minority identities (like the words "blind" or "gay")•women (Park et al., 2018), •disabled people (Hutchinson et al., 2020) •gay people (Dixon et al., 2018; Oliva et al., 2021)•Downstream harms:•Censorship of speech by disabled people and other groups•Speech by these groups becomes less visible online•Writers might be nudged by these algorithms to avoid these words making people less likely to write about themselves or these groups.
+
+## Page 80
+
+Performance Disparities1.Text classifiers perform worse on many languages of the world due to lack of data or labels2.Text classifiers perform worse on varieties of even high-resource languages like English•Example task: language identification, a first step in NLP pipeline ("Is this post in English or not?") •English language detection performance worse for writers who are African American (Blodgett and O'Connor 2017) or from India (Jurgens et al., 2017)
+
+## Page 81
+
+Harms in text classification•Causes:•Issues in the data; NLP systems amplify biases in training data•Problems in the labels•Problems in the algorithms (like what the model is trained to optimize) •Prevalence: The same problems occur throughout NLP (including large language models)  •Solutions: There are no general mitigations or solutions•But harm mitigation is an active area of research•And there are standard benchmarks and tools that we can use for measuring some of the harms
+
+## Page 82
+
+Text Classification and Naive BayesAvoiding Harms in Classification
+

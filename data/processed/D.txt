@@ -1,0 +1,1202 @@
+# D
+
+## Page 1
+
+Speech and Language Processing. Daniel Jurafsky & James H. Martin. Copyright ©2024. All
+rights reserved. Draft of January 12, 2025.
+CHAPTER
+DConstituency Grammars
+Because the Night by Bruce Springsteen and Patty Smith
+The Fire Next Time by James Baldwin
+If on a winter’s night a traveler by Italo Calvino
+Love Actually by Richard Curtis
+Suddenly Last Summer by Tennessee Williams
+A Scanner Darkly by Philip K. Dick
+Six titles that are not constituents, from Geoffrey K. Pullum on
+Language Log (who was pointing out their incredible rarity).
+The study of grammar has an ancient pedigree. The grammar of Sanskrit was
+described by the Indian grammarian P ¯an.ini sometime between the 7th and 4th cen-
+turies BCE, in his famous treatise the As .t.¯adhy ¯ay¯ı (‘8 books’). And our word syntax syntax
+comes from the Greek s´yntaxis , meaning “setting out together or arrangement”, and
+refers to the way words are arranged together. We have seen various syntactic no-
+tions in previous chapters: ordering of sequences of words (Chapter 2), probabilities
+for these word sequences (Chapter 3), and the use of part-of-speech categories as
+a grammatical equivalence class for words (Chapter 17). In this chapter and the
+next three we introduce a variety of syntactic phenomena that go well beyond these
+simpler approaches, together with formal models for capturing them in a computa-
+tionally useful manner.
+The bulk of this chapter is devoted to context-free grammars. Context-free gram-
+mars are the backbone of many formal models of the syntax of natural language (and,
+for that matter, of computer languages). As such, they play a role in many computa-
+tional applications, including grammar checking, semantic interpretation, dialogue
+understanding, and machine translation. They are powerful enough to express so-
+phisticated relations among the words in a sentence, yet computationally tractable
+enough that efﬁcient algorithms exist for parsing sentences with them (as we show in
+Chapter 18). Here we also introduce the concept of lexicalized grammars, focusing
+on one example, combinatory categorial grammar , orCCG .
+In Chapter 20 we introduce a formal model of grammar called syntactic depen-
+dencies that is an alternative to these constituency grammars, and we’ll give algo-
+rithms for dependency parsing . Both constituency and dependency formalisms are
+important for language processing.
+Finally, we provide a brief overview of the grammar of English, illustrated from
+a domain with relatively simple sentences called ATIS (Air Trafﬁc Information Sys-
+tem) (Hemphill et al., 1990). ATIS systems were an early spoken language system
+for users to book ﬂights, by expressing sentences like I’d like to ﬂy to Atlanta .
+
+## Page 2
+
+2APPENDIX D • C ONSTITUENCY GRAMMARS
+D.1 Constituency
+Syntactic constituency is the idea that groups of words can behave as single units,
+or constituents. Part of developing a grammar involves building an inventory of the
+constituents in the language. How do words group together in English? Consider
+thenoun phrase , a sequence of words surrounding at least one noun. Here are some noun phrase
+examples of noun phrases (thanks to Damon Runyon):
+Harry the Horse a high-class spot such as Mindy’s
+the Broadway coppers the reason he comes into the Hot Box
+they three parties from Brooklyn
+What evidence do we have that these words group together (or “form constituents”)?
+One piece of evidence is that they can all appear in similar syntactic environments,
+for example, before a verb.
+three parties from Brooklyn arrive . . .
+a high-class spot such as Mindy’s attracts . . .
+the Broadway coppers love. . .
+they sit
+But while the whole noun phrase can occur before a verb, this is not true of each
+of the individual words that make up a noun phrase. The following are not grammat-
+ical sentences of English (recall that we use an asterisk (*) to mark fragments that
+are not grammatical English sentences):
+*from arrive . . .*asattracts . . .
+*the is. . . *spot sat. . .
+Thus, to correctly describe facts about the ordering of these words in English, we
+must be able to say things like “ Noun Phrases can occur before verbs ”.
+Other kinds of evidence for constituency come from what are called preposed or preposed
+postposed constructions. For example, the prepositional phrase on September sev- postposed
+enteenth can be placed in a number of different locations in the following examples,
+including at the beginning (preposed) or at the end (postposed):
+On September seventeenth , I’d like to ﬂy from Atlanta to Denver
+I’d like to ﬂy on September seventeenth from Atlanta to Denver
+I’d like to ﬂy from Atlanta to Denver on September seventeenth
+But again, while the entire phrase can be placed differently, the individual words
+making up the phrase cannot be:
+*On September , I’d like to ﬂy seventeenth from Atlanta to Denver
+*On I’d like to ﬂy September seventeenth from Atlanta to Denver
+*I’d like to ﬂy on September from Atlanta to Denver seventeenth
+D.2 Context-Free Grammars
+The most widely used formal system for modeling constituent structure in English
+and other natural languages is the Context-Free Grammar , or CFG . Context- CFG
+
+## Page 3
+
+D.2 • C ONTEXT -FREE GRAMMARS 3
+free grammars are also called Phrase-Structure Grammars , and the formalism
+is equivalent to Backus-Naur Form , orBNF . The idea of basing a grammar on
+constituent structure dates back to the psychologist Wilhelm Wundt 1900 but was
+not formalized until Chomsky (1956) and, independently, Backus (1959).
+A context-free grammar consists of a set of rules orproductions , each of which rules
+expresses the ways that symbols of the language can be grouped and ordered to-
+gether, and a lexicon of words and symbols. For example, the following productions lexicon
+express that an NP(ornoun phrase ) can be composed of either a ProperNoun or NP
+a determiner ( Det) followed by a Nominal ; aNominal in turn can consist of one or
+more Noun s.1
+NP!Det Nominal
+NP!ProperNoun
+Nominal!NounjNominal Noun
+Context-free rules can be hierarchically embedded, so we can combine the previous
+rules with others, like the following, that express facts about the lexicon:
+Det!a
+Det!the
+Noun!ﬂight
+The symbols that are used in a CFG are divided into two classes. The symbols
+that correspond to words in the language (“the”, “nightclub”) are called terminal terminal
+symbols; the lexicon is the set of rules that introduce these terminal symbols. The
+symbols that express abstractions over these terminals are called non-terminals . In non-terminal
+each context-free rule, the item to the right of the arrow ( !) is an ordered list of one
+or more terminals and non-terminals; to the left of the arrow is a single non-terminal
+symbol expressing some cluster or generalization. The non-terminal associated with
+each word in the lexicon is its lexical category, or part of speech.
+A CFG can be thought of in two ways: as a device for generating sentences
+and as a device for assigning a structure to a given sentence. Viewing a CFG as a
+generator, we can read the !arrow as “rewrite the symbol on the left with the string
+of symbols on the right”.
+So starting from the symbol: NP
+we can use our ﬁrst rule to rewrite NPas: Det Nominal
+and then rewrite Nominal as: Noun
+and ﬁnally rewrite these parts-of-speech as: a ﬂight
+We say the string a ﬂight can be derived from the non-terminal NP. Thus, a CFG
+can be used to generate a set of strings. This sequence of rule expansions is called a
+derivation of the string of words. It is common to represent a derivation by a parse derivation
+tree (commonly shown inverted with the root at the top). Figure D.1 shows the tree parse tree
+representation of this derivation.
+In the parse tree shown in Fig. D.1, we can say that the node NPdominates dominates
+all the nodes in the tree ( Det,Nom ,Noun ,a,ﬂight ). We can say further that it
+immediately dominates the nodes DetandNom .
+The formal language deﬁned by a CFG is the set of strings that are derivable
+from the designated start symbol . Each grammar must have one designated start start symbol
+1When talking about these rules we can pronounce the rightarrow !as “goes to”, and so we might
+read the ﬁrst rule above as “NP goes to Det Nominal”.
+
+## Page 4
+
+4APPENDIX D • C ONSTITUENCY GRAMMARS
+NP
+Nom
+Noun
+ﬂightDet
+a
+Figure D.1 A parse tree for “a ﬂight”.
+symbol, which is often called S. Since context-free grammars are often used to deﬁne
+sentences, Sis usually interpreted as the “sentence” node, and the set of strings that
+are derivable from Sis the set of sentences in some simpliﬁed version of English.
+Let’s add a few additional rules to our inventory. The following rule expresses
+the fact that a sentence can consist of a noun phrase followed by a verb phrase : verb phrase
+S!NP VP I prefer a morning ﬂight
+A verb phrase in English consists of a verb followed by assorted other things;
+for example, one kind of verb phrase consists of a verb followed by a noun phrase:
+VP!Verb NP prefer a morning ﬂight
+Or the verb may be followed by a noun phrase and a prepositional phrase:
+VP!Verb NP PP leave Boston in the morning
+Or the verb phrase may have a verb followed by a prepositional phrase alone:
+VP!Verb PP leaving on Thursday
+A prepositional phrase generally has a preposition followed by a noun phrase.
+For example, a common type of prepositional phrase in the ATIS corpus is used to
+indicate location or direction:
+PP!Preposition NP from Los Angeles
+TheNPinside a PPneed not be a location; PPs are often used with times and
+dates, and with other nouns as well; they can be arbitrarily complex. Here are ten
+examples from the ATIS corpus:
+to Seattle on these ﬂights
+in Minneapolis about the ground transportation in Chicago
+on Wednesday of the round trip ﬂight on United Airlines
+in the evening of the AP ﬁfty seven ﬂight
+on the ninth of July with a stopover in Nashville
+Figure D.2 gives a sample lexicon, and Fig. D.3 summarizes the grammar rules
+we’ve seen so far, which we’ll call L0. Note that we can use the or-symbol jto
+indicate that a non-terminal has alternate possible expansions.
+We can use this grammar to generate sentences of this “ATIS-language”. We
+start with S, expand it to NP VP , then choose a random expansion of NP(let’s say, to
+I), and a random expansion of VP(let’s say, to Verb NP ), and so on until we generate
+the string I prefer a morning ﬂight . Figure D.4 shows a parse tree that represents a
+complete derivation of I prefer a morning ﬂight .
+We can also represent a parse tree in a more compact format called bracketed
+notation ; here is the bracketed representation of the parse tree of Fig. D.4:bracketed
+notation
+
+## Page 5
+
+D.2 • C ONTEXT -FREE GRAMMARS 5
+Noun!ﬂightsjﬂightjbreezejtripjmorning
+Verb!isjpreferjlikejneedjwantjﬂyjdo
+Adjective!cheapestjnon-stopjﬁrstjlatest
+jotherjdirect
+Pronoun!mejIjyoujit
+Proper-Noun!AlaskajBaltimorejLos Angeles
+jChicagojUnitedjAmerican
+Determiner!thejajanjthisjthesejthat
+Preposition!fromjtojonjnearjin
+Conjunction!andjorjbut
+Figure D.2 The lexicon for L0.
+Grammar Rules Examples
+S!NP VP I + want a morning ﬂight
+NP!Pronoun I
+jProper-Noun Los Angeles
+jDet Nominal a + ﬂight
+Nominal!Nominal Noun morning + ﬂight
+jNoun ﬂights
+VP!Verb do
+jVerb NP want + a ﬂight
+jVerb NP PP leave + Boston + in the morning
+jVerb PP leaving + on Thursday
+PP!Preposition NP from + Los Angeles
+Figure D.3 The grammar for L0, with example phrases for each rule.
+S
+VP
+NP
+Nom
+Noun
+ﬂightNom
+Noun
+morningDet
+aVerb
+preferNP
+Pro
+I
+Figure D.4 The parse tree for “I prefer a morning ﬂight” according to grammar L0.
+(D.1) [ S[NP[ProI]] [VP[Vprefer] [ NP[Deta] [Nom [Nmorning] [ Nom [Nﬂight]]]]]]
+A CFG like that of L0deﬁnes a formal language. We saw in Chapter 2 that a for-
+mal language is a set of strings. Sentences (strings of words) that can be derived by a
+grammar are in the formal language deﬁned by that grammar, and are called gram-
+matical sentences. Sentences that cannot be derived by a given formal grammar are grammatical
+not in the language deﬁned by that grammar and are referred to as ungrammatical . ungrammatical
+
+## Page 6
+
+6APPENDIX D • C ONSTITUENCY GRAMMARS
+This hard line between “in” and “out” characterizes all formal languages but is only
+a very simpliﬁed model of how natural languages really work. This is because de-
+termining whether a given sentence is part of a given natural language (say, English)
+often depends on the context. In linguistics, the use of formal languages to model
+natural languages is called generative grammar since the language is deﬁned bygenerative
+grammar
+the set of possible sentences “generated” by the grammar.
+D.2.1 Formal Deﬁnition of Context-Free Grammar
+We conclude this section with a quick, formal description of a context-free gram-
+mar and the language it generates. A context-free grammar Gis deﬁned by four
+parameters: N;S;R;S(technically this is a “4-tuple”).
+Na set of non-terminal symbols (orvariables )
+Sa set of terminal symbols (disjoint from N)
+Ra set of rules or productions, each of the form A!b,
+where Ais a non-terminal,
+bis a string of symbols from the inﬁnite set of strings (S[N)
+Sa designated start symbol and a member of N
+For the remainder of the book we adhere to the following conventions when dis-
+cussing the formal properties of context-free grammars (as opposed to explaining
+particular facts about English or other languages).
+Capital letters like A,B, and S Non-terminals
+S The start symbol
+Lower-case Greek letters like a,b, and g Strings drawn from (S[N)
+Lower-case Roman letters like u,v, and w Strings of terminals
+A language is deﬁned through the concept of derivation. One string derives an-
+other one if it can be rewritten as the second one by some series of rule applications.
+More formally, following Hopcroft and Ullman (1979),
+ifA!bis a production of Randaandgare any strings in the set
+(S[N), then we say that aAgdirectly derives abg , oraAg)abg . directly derives
+Derivation is then a generalization of direct derivation:
+Leta1;a2;:::; ambe strings in (S[N);m1, such that
+a1)a2;a2)a3;:::; am 1)am
+We say that a1derives am, ora1)am. derives
+We can then formally deﬁne the language LGgenerated by a grammar Gas the
+set of strings composed of terminal symbols that can be derived from the designated
+start symbol S.
+LG=fwjwis inSandS)wg
+The problem of mapping from a string of words to its parse tree is called syn-
+tactic parsing ; we deﬁne algorithms for constituency parsing in Chapter 18.syntactic
+parsing
+
+## Page 7
+
+D.3 • S OME GRAMMAR RULES FOR ENGLISH 7
+D.3 Some Grammar Rules for English
+In this section, we introduce a few more aspects of the phrase structure of English;
+for consistency we will continue to focus on sentences from the ATIS domain. Be-
+cause of space limitations, our discussion is necessarily limited to highlights. Read-
+ers are strongly advised to consult a good reference grammar of English, such as
+Huddleston and Pullum (2002).
+D.3.1 Sentence-Level Constructions
+In the small grammar L0, we provided only one sentence-level construction for
+declarative sentences like I prefer a morning ﬂight . Among the large number of
+constructions for English sentences, four are particularly common and important:
+declaratives, imperatives, yes-no questions, and wh-questions.
+Sentences with declarative structure have a subject noun phrase followed by declarative
+a verb phrase, like “I prefer a morning ﬂight”. Sentences with this structure have
+a great number of different uses that we follow up on in Chapter 15. Here are a
+number of examples from the ATIS domain:
+I want a ﬂight from Ontario to Chicago
+The ﬂight should be eleven a.m. tomorrow
+The return ﬂight should leave at around seven p.m.
+Sentences with imperative structure often begin with a verb phrase and have imperative
+no subject. They are called imperative because they are almost always used for
+commands and suggestions; in the ATIS domain they are commands to the system.
+Show the lowest fare
+Give me Sunday’s ﬂights arriving in Las Vegas from New York City
+List all ﬂights between ﬁve and seven p.m.
+We can model this sentence structure with another rule for the expansion of S:
+S!VP
+Sentences with yes-no question structure are often (though not always) used to yes-no question
+ask questions; they begin with an auxiliary verb, followed by a subject NP, followed
+by a VP. Here are some examples. Note that the third example is not a question at
+all but a request; Chapter 15 discusses the uses of these question forms to perform
+different pragmatic functions such as asking, requesting, or suggesting.
+Do any of these ﬂights have stops?
+Does American’s ﬂight eighteen twenty ﬁve serve dinner?
+Can you give me the same information for United?
+Here’s the rule:
+S!Aux NP VP
+The most complex sentence-level structures we examine here are the various wh-
+structures. These are so named because one of their constituents is a wh-phrase , that wh-phrase
+is, one that includes a wh-word (who, whose, when, where, what, which, how, why ). wh-word
+These may be broadly grouped into two classes of sentence-level structures. The
+wh-subject-question structure is identical to the declarative structure, except that
+the ﬁrst noun phrase contains some wh-word.
+
+## Page 8
+
+8APPENDIX D • C ONSTITUENCY GRAMMARS
+What airlines ﬂy from Burbank to Denver?
+Which ﬂights depart Burbank after noon and arrive in Denver by six p.m?
+Whose ﬂights serve breakfast?
+Here is a rule. Exercise D.7 discusses rules for the constituents that make up the
+Wh-NP .
+S!Wh-NP VP
+In the wh-non-subject-question structure, the wh-phrase is not the subject of thewh-non-subject-
+question
+sentence, and so the sentence includes another subject. In these types of sentences
+the auxiliary appears before the subject NP, just as in the yes-no question structures.
+Here is an example followed by a sample rule:
+What ﬂights do you have from Burbank to Tacoma Washington?
+S!Wh-NP Aux NP VP
+Constructions like the wh-non-subject-question contain what are called long-
+distance dependencies because the Wh-NP what ﬂights is far away from the predi-long-distance
+dependencies
+cate that it is semantically related to, the main verb have in the VP. In some models
+of parsing and understanding compatible with the grammar rule above, long-distance
+dependencies like the relation between ﬂights andhave are thought of as a semantic
+relation. In such models, the job of ﬁguring out that ﬂights is the argument of have is
+done during semantic interpretation. Other models of parsing represent the relation-
+ship between ﬂights andhave as a syntactic relation, and the grammar is modiﬁed to
+insert a small marker called a trace orempty category after the verb. We discuss
+empty-category models when we introduce the Penn Treebank on page 15.
+D.3.2 Clauses and Sentences
+Before we move on, we should clarify the status of the Srules in the grammars we
+just described. Srules are intended to account for entire sentences that stand alone
+as fundamental units of discourse. However, Scan also occur on the right-hand side
+of grammar rules and hence can be embedded within larger sentences. Clearly then,
+there’s more to being an Sthan just standing alone as a unit of discourse.
+What differentiates sentence constructions (i.e., the Srules) from the rest of the
+grammar is the notion that they are in some sense complete . In this way they corre-
+spond to the notion of a clause , which traditional grammars often describe as form- clause
+ing a complete thought. One way of making this notion of “complete thought” more
+precise is to say an Sis a node of the parse tree below which the main verb of the S
+has all of its arguments . We deﬁne verbal arguments later, but for now let’s just see
+an illustration from the tree for I prefer a morning ﬂight in Fig. D.4 on page 5. The
+verb prefer has two arguments: the subject Iand the object a morning ﬂight . One of
+the arguments appears below the VPnode, but the other one, the subject NP, appears
+only below the Snode.
+D.3.3 The Noun Phrase
+OurL0grammar introduced three of the most frequent types of noun phrases that
+occur in English: pronouns, proper nouns and the NP!Det Nominal construction.
+The central focus of this section is on the last type since that is where the bulk of
+the syntactic complexity resides. These noun phrases consist of a head, the central
+noun in the noun phrase, along with various modiﬁers that can occur before or after
+the head noun. Let’s take a close look at the various parts.
+
+## Page 9
+
+D.3 • S OME GRAMMAR RULES FOR ENGLISH 9
+The Determiner
+Noun phrases can begin with simple lexical determiners:
+a stop the ﬂights this ﬂight
+those ﬂights any ﬂights some ﬂights
+The role of the determiner can also be ﬁlled by more complex expressions:
+United’s ﬂight
+United’s pilot’s union
+Denver’s mayor’s mother’s canceled ﬂight
+In these examples, the role of the determiner is ﬁlled by a possessive expression
+consisting of a noun phrase followed by an ’sas a possessive marker, as in the
+following rule.
+Det!NP0s
+The fact that this rule is recursive (since an NPcan start with a Det) helps us model
+the last two examples above, in which a sequence of possessive expressions serves
+as a determiner.
+Under some circumstances determiners are optional in English. For example,
+determiners may be omitted if the noun they modify is plural:
+(D.2) Show me ﬂights from San Francisco to Denver on weekdays
+As we saw in Chapter 17, mass nouns also don’t require determination. Recall that
+mass nouns often (not always) involve something that is treated like a substance
+(including e.g., water andsnow ), don’t take the indeﬁnite article “ a”, and don’t tend
+to pluralize. Many abstract nouns are mass nouns ( music ,homework ). Mass nouns
+in the ATIS domain include breakfast ,lunch , and dinner :
+(D.3) Does this ﬂight serve dinner?
+The Nominal
+The nominal construction follows the determiner and contains any pre- and post-
+head noun modiﬁers. As indicated in grammar L0, in its simplest form a nominal
+can consist of a single noun.
+Nominal!Noun
+As we’ll see, this rule also provides the basis for the bottom of various recursive
+rules used to capture more complex nominal constructions.
+Before the Head Noun
+A number of different kinds of word classes can appear before the head noun but
+after the determiner (the “postdeterminers”) in a nominal. These include cardinalcardinal
+numbers
+numbers ,ordinal numbers ,quantiﬁers , and adjectives . Examples of cardinalordinal
+numbers
+quantiﬁers numbers:
+two friends one stop
+Ordinal numbers include ﬁrst,second ,third , and so on, but also words like next,
+last,past,other , and another :
+the ﬁrst one the next day the second leg
+the last ﬂight the other American ﬂight
+Some quantiﬁers ( many ,(a) few ,several ) occur only with plural count nouns:
+
+## Page 10
+
+10 APPENDIX D • C ONSTITUENCY GRAMMARS
+many fares
+Adjectives occur after quantiﬁers but before nouns.
+aﬁrst-class fare a non-stop ﬂight
+thelongest layover the earliest lunch ﬂight
+Adjectives can also be grouped into a phrase called an adjective phrase or AP.adjective
+phrase
+APs can have an adverb before the adjective (see Chapter 17 for deﬁnitions of ad-
+jectives and adverbs):
+theleast expensive fare
+After the Head Noun
+A head noun can be followed by postmodiﬁers . Three kinds of nominal postmodi-
+ﬁers are common in English:
+prepositional phrases all ﬂights from Cleveland
+non-ﬁnite clauses any ﬂights arriving after eleven a.m.
+relative clauses a ﬂight that serves breakfast
+They are especially common in the ATIS corpus since they are used to mark the
+origin and destination of ﬂights.
+Here are some examples of prepositional phrase postmodiﬁers, with brackets
+inserted to show the boundaries of each PP; note that two or more PPs can be strung
+together within a single NP:
+all ﬂights [from Cleveland] [to Newark]
+arrival [in San Jose] [before seven p.m.]
+a reservation [on ﬂight six oh six] [from Tampa] [to Montreal]
+Here’s a new nominal rule to account for postnominal PPs:
+Nominal!Nominal PP
+The three most common kinds of non-ﬁnite postmodiﬁers are the gerundive ( - non-ﬁnite
+ing),-ed, and inﬁnitive forms.
+Gerundive postmodiﬁers are so called because they consist of a verb phrase that gerundive
+begins with the gerundive ( -ing) form of the verb. Here are some examples:
+any of those [leaving on Thursday]
+any ﬂights [arriving after eleven a.m.]
+ﬂights [arriving within thirty minutes of each other]
+We can deﬁne the Nominals with gerundive modiﬁers as follows, making use of
+a new non-terminal GerundVP :
+Nominal!Nominal GerundVP
+We can make rules for GerundVP constituents by duplicating all of our VP pro-
+ductions, substituting GerundV forV.
+GerundVP!GerundV NP
+jGerundV PPjGerundVjGerundV NP PP
+GerundV can then be deﬁned as
+GerundV!beingjarrivingjleavingj:::
+The phrases in italics below are examples of the two other common kinds of
+non-ﬁnite clauses, inﬁnitives and -edforms:
+
+## Page 11
+
+D.3 • S OME GRAMMAR RULES FOR ENGLISH 11
+the last ﬂight to arrive in Boston
+I need to have dinner served
+Which is the aircraft used by this ﬂight ?
+A postnominal relative clause (more correctly a restrictive relative clause ), is
+a clause that often begins with a relative pronoun (thatandwho are the most com-relative
+pronoun
+mon). The relative pronoun functions as the subject of the embedded verb in the
+following examples:
+a ﬂight that serves breakfast
+ﬂights that leave in the morning
+the one that leaves at ten thirty ﬁve
+We might add rules like the following to deal with these:
+Nominal!Nominal RelClause
+RelClause!(whojthat)VP
+The relative pronoun may also function as the object of the embedded verb, as
+in the following example; we leave for the reader the exercise of writing grammar
+rules for more complex relative clauses of this kind.
+the earliest American Airlines ﬂight that I can get
+Various postnominal modiﬁers can be combined:
+a ﬂight [from Phoenix to Detroit] [leaving Monday evening]
+evening ﬂights [from Nashville to Houston] [that serve dinner]
+a friend [living in Denver] [that would like to visit me in DC]
+Before the Noun Phrase
+Word classes that modify and appear before NPs are called predeterminers . Many predeterminers
+of these have to do with number or amount; a common predeterminer is all:
+all the ﬂights all ﬂights all non-stop ﬂights
+The example noun phrase given in Fig. D.5 illustrates some of the complexity
+that arises when these rules are combined.
+D.3.4 The Verb Phrase
+The verb phrase consists of the verb and a number of other constituents. In the
+simple rules we have built so far, these other constituents include NPs and PPs and
+combinations of the two:
+VP!Verb disappear
+VP!Verb NP prefer a morning ﬂight
+VP!Verb NP PP leave Boston in the morning
+VP!Verb PP leaving on Thursday
+Verb phrases can be signiﬁcantly more complicated than this. Many other kinds
+of constituents, such as an entire embedded sentence, can follow the verb. These are
+called sentential complements :sentential
+complements
+You [ VP[Vsaid [ Syou had a two hundred sixty-six dollar fare]]
+[VP[VTell] [ NPme] [ Show to get from the airport to downtown]]
+I [VP[Vthink [ SI would like to take the nine thirty ﬂight]]
+
+## Page 12
+
+12 APPENDIX D • C ONSTITUENCY GRAMMARS
+NP
+NP
+Nom
+GerundiveVP
+leaving before 10Nom
+PP
+to TampaNom
+PP
+from DenverNom
+Noun
+ﬂightsNom
+Noun
+morningDet
+thePreDet
+all
+Figure D.5 A parse tree for “all the morning ﬂights from Denver to Tampa leaving before 10”.
+Here’s a rule for these:
+VP!Verb S
+Similarly, another potential constituent of the VPis another VP. This is often the
+case for verbs like want ,would like ,try,intend ,need :
+I want [ VPto ﬂy from Milwaukee to Orlando]
+Hi, I want [ VPto arrange three ﬂights]
+While a verb phrase can have many possible kinds of constituents, not every
+verb is compatible with every verb phrase. For example, the verb want can be used
+either with an NPcomplement ( I want a ﬂight . . . ) or with an inﬁnitive VPcomple-
+ment ( I want to ﬂy to . . . ). By contrast, a verb like ﬁndcannot take this sort of VP
+complement ( * I found to ﬂy to Dallas ).
+This idea that verbs are compatible with different kinds of complements is a very
+old one; traditional grammar distinguishes between transitive verbs like ﬁnd, which transitive
+take a direct object NP(I found a ﬂight ), and intransitive verbs like disappear , intransitive
+which do not ( *I disappeared a ﬂight ).
+Where traditional grammars subcategorize verbs into these two categories (tran- subcategorize
+sitive and intransitive), modern grammars distinguish as many as 100 subcategories.
+We say that a verb like ﬁndsubcategorizes for anNP, and a verb like want sub-subcategorizes
+for
+categorizes for either an NPor a non-ﬁnite VP. We also call these constituents the
+complements of the verb (hence our use of the term sentential complement above). complements
+So we say that want can take a VPcomplement. These possible sets of complements
+are called the subcategorization frame for the verb. Another way of talking aboutsubcategorization
+frame
+the relation between the verb and these other constituents is to think of the verb as
+a logical predicate and the constituents as logical arguments of the predicate. So we
+can think of such predicate-argument relations as FIND (I,A FLIGHT ) or WANT (I,TO
+FLY). We talk more about this view of verbs and arguments in Appendix F when we
+talk about predicate calculus representations of verb semantics. Subcategorization
+frames for a set of example verbs are given in Fig. D.6.
+
+## Page 13
+
+D.3 • S OME GRAMMAR RULES FOR ENGLISH 13
+Frame Verb Example
+/ 0 eat, sleep I ate
+NP prefer, ﬁnd, leave Find [ NPthe ﬂight from Pittsburgh to Boston]
+NP NP show, give Show [ NPme] [ NPairlines with ﬂights from Pittsburgh]
+PPfromPPto ﬂy, travel I would like to ﬂy [ PPfrom Boston] [ PPto Philadelphia]
+NP PP with help, load Can you help [ NPme] [ PPwith a ﬂight]
+VPto prefer, want, need I would prefer [ VPto to go by United Airlines]
+S mean Does this mean [ SAA has a hub in Boston]
+Figure D.6 Subcategorization frames for a set of example verbs.
+We can capture the association between verbs and their complements by making
+separate subtypes of the class Verb (e.g., Verb-with-NP-complement ,Verb-with-Inf-
+VP-complement ,Verb-with-S-complement , and so on):
+Verb-with-NP-complement !ﬁndjleavejrepeatj:::
+Verb-with-S-complement !thinkjbelievejsayj:::
+Verb-with-Inf-VP-complement !wantjtryjneedj:::
+Each VPrule could then be modiﬁed to require the appropriate verb subtype:
+VP!Verb-with-no-complement disappear
+VP!Verb-with-NP-comp NP prefer a morning ﬂight
+VP!Verb-with-S-comp S said there were two ﬂights
+A problem with this approach is the signiﬁcant increase in the number of rules and
+the associated loss of generality.
+D.3.5 Coordination
+The major phrase types discussed here can be conjoined with conjunctions likeand, conjunctions
+or, and butto form larger constructions of the same type. For example, a coordinate coordinate
+noun phrase can consist of two other noun phrases separated by a conjunction:
+Please repeat [ NP[NPthe ﬂights] and[NPthe costs]]
+I need to know [ NP[NPthe aircraft] and[NPthe ﬂight number]]
+Here’s a rule that allows these structures:
+NP!NP and NP
+Note that the ability to form coordinate phrases through conjunctions is often
+used as a test for constituency. Consider the following examples, which differ from
+the ones given above in that they lack the second determiner.
+Please repeat the [ Nom[Nomﬂights] and[Nomcosts]]
+I need to know the [ Nom[Nomaircraft] and[Nomﬂight number]]
+The fact that these phrases can be conjoined is evidence for the presence of the
+underlying Nominal constituent we have been making use of. Here’s a rule for this:
+Nominal!Nominal and Nominal
+The following examples illustrate conjunctions involving VPs and Ss.
+
+## Page 14
+
+14 APPENDIX D • C ONSTITUENCY GRAMMARS
+What ﬂights do you have [ VP[VPleaving Denver] and[VParriving in
+San Francisco]]
+[S[SI’m interested in a ﬂight from Dallas to Washington] and[SI’m
+also interested in going to Baltimore]]
+The rules for VPandSconjunctions mirror the NPone given above.
+VP!VP and VP
+S!S and S
+Since all the major phrase types can be conjoined in this fashion, it is also possible
+to represent this conjunction fact more generally; a number of grammar formalisms
+such as GPSG (Gazdar et al., 1985) do this using metarules like: metarules
+X!X and X
+This metarule states that any non-terminal can be conjoined with the same non-
+terminal to yield a constituent of the same type; the variable Xmust be designated
+as a variable that stands for any non-terminal rather than a non-terminal itself.
+D.4 Treebanks
+Sufﬁciently robust grammars consisting of context-free grammar rules can be used
+to assign a parse tree to any sentence. This means that it is possible to build a
+corpus where every sentence in the collection is paired with a corresponding parse
+tree. Such a syntactically annotated corpus is called a treebank . Treebanks play treebank
+an important role in parsing, as we discuss in Chapter 18, as well as in linguistic
+investigations of syntactic phenomena.
+A wide variety of treebanks have been created, generally through the use of
+parsers (of the sort described in the next few chapters) to automatically parse each
+sentence, followed by the use of humans (linguists) to hand-correct the parses. The
+Penn Treebank project (whose POS tagset we introduced in Chapter 17) has pro- Penn Treebank
+duced treebanks from the Brown, Switchboard, ATIS, and Wall Street Journal cor-
+pora of English, as well as treebanks in Arabic and Chinese. A number of treebanks
+use the dependency representation we will introduce in Chapter 20, including many
+that are part of the Universal Dependencies project (Nivre et al., 2016).
+D.4.1 Example: The Penn Treebank Project
+Figure D.7 shows sentences from the Brown and ATIS portions of the Penn Tree-
+bank.2Note the formatting differences for the part-of-speech tags; such small dif-
+ferences are common and must be dealt with in processing treebanks. The Penn
+Treebank part-of-speech tagset was deﬁned in Chapter 17. The use of LISP-style
+parenthesized notation for trees is extremely common and resembles the bracketed
+notation we saw earlier in (D.1). For those who are not familiar with it we show a
+standard node-and-line tree representation in Fig. D.8.
+Figure D.9 shows a tree from the Wall Street Journal . This tree shows another
+feature of the Penn Treebanks: the use of traces (-NONE- nodes) to mark long- traces
+2The Penn Treebank project released treebanks in multiple languages and in various stages; for exam-
+ple, there were Treebank I (Marcus et al., 1993), Treebank II (Marcus et al., 1994), and Treebank III
+releases of English treebanks. We use Treebank III for our examples.
+
+## Page 15
+
+D.4 • T REEBANKS 15
+((S
+(NP-SBJ (DT That)
+(JJ cold) (, ,)
+(JJ empty) (NN sky) )
+(VP (VBD was)
+(ADJP-PRD (JJ full)
+(PP (IN of)
+(NP (NN fire)
+(CC and)
+(NN light) ))))
+(. .) ))((S
+(NP-SBJ The/DT flight/NN )
+(VP should/MD
+(VP arrive/VB
+(PP-TMP at/IN
+(NP eleven/CD a.m/RB ))
+(NP-TMP tomorrow/NN )))))
+(a) (b)
+Figure D.7 Parsed sentences from the LDC Treebank3 version of the (a) Brown and (b)
+ATIS corpora.
+S
+.
+.VP
+ADJP-PRD
+PP
+NP
+NN
+lightCC
+andNN
+ﬁreIN
+ofJJ
+fullVBD
+wasNP-SBJ
+NN
+skyJJ
+empty,
+,JJ
+coldDT
+That
+Figure D.8 The tree corresponding to the Brown corpus sentence in the previous ﬁgure.
+distance dependencies or syntactic movement . For example, quotations often fol-syntactic
+movement
+low a quotative verb like say. But in this example, the quotation “We would have
+to wait until we have collected on those assets” precedes the words he said . An
+empty Scontaining only the node -NONE- marks the position after said where the
+quotation sentence often occurs. This empty node is marked (in Treebanks II and
+III) with the index 2, as is the quotation Sat the beginning of the sentence. Such
+co-indexing may make it easier for some parsers to recover the fact that this fronted
+or topicalized quotation is the complement of the verb said. A similar -NONE- node
+marks the fact that there is no syntactic subject right before the verb to wait ; instead,
+the subject is the earlier NP We . Again, they are both co-indexed with the index 1.
+The Penn Treebank II and Treebank III releases added further information to
+make it easier to recover the relationships between predicates and arguments. Cer-
+tain phrases were marked with tags indicating the grammatical function of the phrase
+(as surface subject, logical topic, cleft, non-VP predicates) its presence in particular
+text categories (headlines, titles), and its semantic function (temporal phrases, lo-
+
+## Page 16
+
+16 APPENDIX D • C ONSTITUENCY GRAMMARS
+( (S (`` ``)
+(S-TPC-2
+(NP-SBJ-1 (PRP We) )
+(VP (MD would)
+(VP (VB have)
+(S
+(NP-SBJ (-NONE- *-1) )
+(VP (TO to)
+(VP (VB wait)
+(SBAR-TMP (IN until)
+(S
+(NP-SBJ (PRP we) )
+(VP (VBP have)
+(VP (VBN collected)
+(PP-CLR (IN on)
+(NP (DT those)(NNS assets)))))))))))))
+(, ,) ('' '')
+(NP-SBJ (PRP he) )
+(VP (VBD said)
+(S (-NONE- *T*-2) ))
+(. .) ))
+Figure D.9 A sentence from the Wall Street Journal portion of the LDC Penn Treebank.
+Note the use of the empty -NONE- nodes.
+cations) (Marcus et al. 1994, Bies et al. 1995). Figure D.9 shows examples of the
+-SBJ (surface subject) and -TMP (temporal phrase) tags. Figure D.8 shows in addi-
+tion the -PRD tag, which is used for predicates that are not VPs (the one in Fig. D.8
+is an ADJP). We’ll return to the topic of grammatical function when we consider
+dependency grammars and parsing in Chapter 19.
+D.4.2 Treebanks as Grammars
+The sentences in a treebank implicitly constitute a grammar of the language repre-
+sented by the corpus being annotated. For example, from the three parsed sentences
+in Fig. D.7 and Fig. D.9, we can extract each of the CFG rules in them. For simplic-
+ity, let’s strip off the rule sufﬁxes ( -SBJ and so on). The resulting grammar is shown
+in Fig. D.10.
+The grammar used to parse the Penn Treebank is relatively ﬂat, resulting in very
+many and very long rules. For example, among the approximately 4,500 different
+rules for expanding VPs are separate rules for PP sequences of any length and every
+possible arrangement of verb arguments:
+VP!VBD PP
+VP!VBD PP PP
+VP!VBD PP PP PP
+VP!VBD PP PP PP PP
+VP!VB ADVP PP
+VP!VB PP ADVP
+VP!ADVP VB PP
+as well as even longer rules, such as
+VP!VBP PP PP PP PP PP ADVP PP
+
+## Page 17
+
+D.4 • T REEBANKS 17
+Grammar Lexicon
+S!NP VP . PRP!wejhe
+S!NP VP DT!thejthatjthose
+S!“S”, NP VP . JJ!coldjemptyjfull
+S!-NONE- NN!skyjﬁrejlightjﬂightjtomorrow
+NP!DT NN NNS!assets
+NP!DT NNS CC!and
+NP!NN CC NN IN!ofjatjuntiljon
+NP!CD RB CD!eleven
+NP!DT JJ , JJ NN RB!a.m.
+NP!PRP VB!arrivejhavejwait
+NP!-NONE- VBD!wasjsaid
+VP!MD VP VBP!have
+VP!VBD ADJP VBN!collected
+VP!VBD S MD!shouldjwould
+VP!VBN PP TO!to
+VP!VB S
+VP!VB SBAR
+VP!VBP VP
+VP!VBN PP
+VP!TO VP
+SBAR!IN S
+ADJP!JJ PP
+PP!IN NP
+Figure D.10 A sample of the CFG grammar rules and lexical entries that would be ex-
+tracted from the three treebank sentences in Fig. D.7 and Fig. D.9.
+which comes from the VPmarked in italics:
+This mostly happens because we go from football in the fall to lifting in the
+winter to football again in the spring .
+Some of the many thousands of NPrules include
+NP!DT JJ NN
+NP!DT JJ NNS
+NP!DT JJ NN NN
+NP!DT JJ JJ NN
+NP!DT JJ CD NNS
+NP!RB DT JJ NN NN
+NP!RB DT JJ JJ NNS
+NP!DT JJ JJ NNP NNS
+NP!DT NNP NNP NNP NNP JJ NN
+NP!DT JJ NNP CC JJ JJ NN NNS
+NP!RB DT JJS NN NN SBAR
+NP!DT VBG JJ NNP NNP CC NNP
+NP!DT JJ NNS , NNS CC NN NNS NN
+NP!DT JJ JJ VBG NN NNP NNP FW NNP
+NP!NP JJ , JJ `` SBAR '' NNS
+The last two of those rules, for example, come from the following two noun phrases:
+[DTThe] [JJstate-owned ] [JJindustrial ] [VBGholding ] [NNcompany ] [NNPInstituto ] [NNPNacional ]
+[FWde] [NNPIndustria ]
+[NPShearson’s ] [JJeasy-to-ﬁlm ],[JJblack-and-white ]“[SBAR Where We Stand ]”[NNScommercials ]
+Viewed as a large grammar in this way, the Penn Treebank III Wall Street Journal
+corpus, which contains about 1 million words, also has about 1 million non-lexical
+rule tokens, consisting of about 17,500 distinct rule types.
+
+## Page 18
+
+18 APPENDIX D • C ONSTITUENCY GRAMMARS
+S(dumped)
+VP(dumped)
+PP(into)
+NP(bin)
+NN(bin)
+binDT(a)
+aP
+intoNP(sacks)
+NNS(sacks)
+sacksVBD(dumped)
+dumpedNP(workers)
+NNS(workers)
+workers
+Figure D.11 A lexicalized tree from Collins (1999).
+Various facts about the treebank grammars, such as their large numbers of ﬂat
+rules, pose problems for probabilistic parsing algorithms. For this reason, it is com-
+mon to make various modiﬁcations to a grammar extracted from a treebank. We
+discuss these further in Appendix C.
+D.4.3 Heads and Head-Finding
+We suggested informally earlier that syntactic constituents could be associated with
+a lexical head ;Nis the head of an NP,Vis the head of a VP. This idea of a head
+for each constituent dates back to Bloomﬁeld 1914, and is central to the dependency
+grammars and dependency parsing we’ll introduce in Chapter 19. Heads are also
+important in probabilistic parsing (Appendix C) and in constituent-based grammar
+formalisms like Head-Driven Phrase Structure Grammar (Pollard and Sag, 1994)..
+In one simple model of lexical heads, each context-free rule is associated with
+a head (Charniak 1997, Collins 1999). The head is the word in the phrase that is
+grammatically the most important. Heads are passed up the parse tree; thus, each
+non-terminal in a parse tree is annotated with a single word, which is its lexical
+head. Figure D.11 shows an example of such a tree from Collins (1999), in which
+each non-terminal is annotated with its head.
+For the generation of such a tree, each CFG rule must be augmented to identify
+one right-side constituent to be the head child. The headword for a node is then set to
+the headword of its head child. Choosing these head children is simple for textbook
+examples ( NNis the head of NP) but is complicated and indeed controversial for
+most phrases. (Should the complementizer toor the verb be the head of an inﬁnite
+verb phrase?) Modern linguistic theories of syntax generally include a component
+that deﬁnes heads (see, e.g., (Pollard and Sag, 1994)).
+An alternative approach to ﬁnding a head is used in most practical computational
+systems. Instead of specifying head rules in the grammar itself, heads are identiﬁed
+dynamically in the context of trees for speciﬁc sentences. In other words, once
+a sentence is parsed, the resulting tree is walked to decorate each node with the
+appropriate head. Most current systems rely on a simple set of handwritten rules,
+such as a practical one for Penn Treebank grammars given in Collins (1999) but
+developed originally by Magerman (1995). For example, the rule for ﬁnding the
+head of an NPis as follows (Collins, 1999, p. 238):
+• If the last word is tagged POS, return last-word.
+
+## Page 19
+
+D.5 • G RAMMAR EQUIVALENCE AND NORMAL FORM 19
+• Else search from right to left for the ﬁrst child which is an NN, NNP, NNPS, NX, POS,
+or JJR.
+• Else search from left to right for the ﬁrst child which is an NP.
+• Else search from right to left for the ﬁrst child which is a $, ADJP, or PRN.
+• Else search from right to left for the ﬁrst child which is a CD.
+• Else search from right to left for the ﬁrst child which is a JJ, JJS, RB or QP.
+• Else return the last word
+Selected other rules from this set are shown in Fig. D.12. For example, for VP
+rules of the form VP!Y1Yn, the algorithm would start from the left of Y1
+Ynlooking for the ﬁrst Yiof type TO; if no TOs are found, it would search for the
+ﬁrstYiof type VBD; if no VBDs are found, it would search for a VBN, and so on.
+See Collins (1999) for more details.
+Parent Direction Priority List
+ADJP Left NNS QP NN $ ADVP JJ VBN VBG ADJP JJR NP JJS DT FW RBR RBS
+SBAR RB
+ADVP Right RB RBR RBS FW ADVP TO CD JJR JJ IN NP JJS NN
+PRN Left
+PRT Right RP
+QP Left $ IN NNS NN JJ RB DT CD NCD QP JJR JJS
+S Left TO IN VP S SBAR ADJP UCP NP
+SBAR Left WHNP WHPP WHADVP WHADJP IN DT S SQ SINV SBAR FRAG
+VP Left TO VBD VBN MD VBZ VB VBG VBP VP ADJP NN NNS NP
+Figure D.12 Some head rules from Collins (1999). The head rules are also called a head percolation table .
+D.5 Grammar Equivalence and Normal Form
+A formal language is deﬁned as a (possibly inﬁnite) set of strings of words. This
+suggests that we could ask if two grammars are equivalent by asking if they gener-
+ate the same set of strings. In fact, it is possible to have two distinct context-free
+grammars generate the same language.
+We usually distinguish two kinds of grammar equivalence: weak equivalence
+andstrong equivalence . Two grammars are strongly equivalent if they generate the
+same set of strings andif they assign the same phrase structure to each sentence
+(allowing merely for renaming of the non-terminal symbols). Two grammars are
+weakly equivalent if they generate the same set of strings but do not assign the same
+phrase structure to each sentence.
+It is sometimes useful to have a normal form for grammars, in which each of normal form
+the productions takes a particular form. For example, a context-free grammar is in
+Chomsky normal form (CNF) (Chomsky, 1963) if it is -free and if in additionChomsky
+normal form
+each production is either of the form A!B C orA!a. That is, the right-hand side
+of each rule either has two non-terminal symbols or one terminal symbol. Chomsky
+normal form grammars are binary branching , that is they have binary trees (downbinary
+branching
+to the prelexical nodes). We make use of this binary branching property in the CKY
+parsing algorithm in Chapter 18.
+Any context-free grammar can be converted into a weakly equivalent Chomsky
+normal form grammar. For example, a rule of the form
+A!B C D
+
+## Page 20
+
+20 APPENDIX D • C ONSTITUENCY GRAMMARS
+can be converted into the following two CNF rules (Exercise D. ??asks the reader to
+formulate the complete algorithm):
+A!B X
+X!C D
+Sometimes using binary branching can actually produce smaller grammars. For
+example, the sentences that might be characterized as
+VP -> VBD NP PP*
+are represented in the Penn Treebank by this series of rules:
+VP!VBD NP PP
+VP!VBD NP PP PP
+VP!VBD NP PP PP PP
+VP!VBD NP PP PP PP PP
+...
+but could also be generated by the following two-rule grammar:
+VP!VBD NP PP
+VP!VP PP
+The generation of a symbol A with a potentially inﬁnite sequence of symbols B with
+a rule of the form A!A Bis known as Chomsky-adjunction .Chomsky-
+adjunction
+D.6 Summary
+This chapter has introduced a number of fundamental concepts in syntax through
+the use of context-free grammars .
+• In many languages, groups of consecutive words act as a group or a con-
+stituent , which can be modeled by context-free grammars (which are also
+known as phrase-structure grammars ).
+• A context-free grammar consists of a set of rules orproductions , expressed
+over a set of non-terminal symbols and a set of terminal symbols. Formally,
+a particular context-free language is the set of strings that can be derived
+from a particular context-free grammar .
+• Agenerative grammar is a traditional name in linguistics for a formal lan-
+guage that is used to model the grammar of a natural language.
+• There are many sentence-level grammatical constructions in English; declar-
+ative ,imperative ,yes-no question , and wh-question are four common types;
+these can be modeled with context-free rules.
+• An English noun phrase can have determiners ,numbers ,quantiﬁers , and
+adjective phrases preceding the head noun , which can be followed by a num-
+ber of postmodiﬁers ;gerundive andinﬁnitive VPs are common possibilities.
+•Subjects in English agree with the main verb in person and number.
+• Verbs can be subcategorized by the types of complements they expect. Sim-
+ple subcategories are transitive and intransitive ; most grammars include
+many more categories than these.
+•Treebanks of parsed sentences exist for many genres of English and for many
+languages. Treebanks can be searched with tree-search tools.
+
+## Page 21
+
+BIBLIOGRAPHICAL AND HISTORICAL NOTES 21
+• Any context-free grammar can be converted to Chomsky normal form , in
+which the right-hand side of each rule has either two non-terminals or a single
+terminal.
+Bibliographical and Historical Notes
+According to Percival (1976), the idea of breaking up a sentence into a hierarchy of
+constituents appeared in the V¨olkerpsychologie of the groundbreaking psychologist
+Wilhelm Wundt (Wundt, 1900):
+...den sprachlichen Ausdruck f ¨ur die willk ¨urliche Gliederung einer Ge-
+sammtvorstellung in ihre in logische Beziehung zueinander gesetzten
+Bestandteile
+[the linguistic expression for the arbitrary division of a total idea
+into its constituent parts placed in logical relations to one another]
+Wundt’s idea of constituency was taken up into linguistics by Leonard Bloom-
+ﬁeld in his early book An Introduction to the Study of Language (Bloomﬁeld, 1914).
+By the time of his later book, Language (Bloomﬁeld, 1933), what was then called
+“immediate-constituent analysis” was a well-established method of syntactic study
+in the United States. By contrast, traditional European grammar, dating from the
+Classical period, deﬁned relations between words rather than constituents, and Eu-
+ropean syntacticians retained this emphasis on such dependency grammars, the sub-
+ject of Chapter 19.
+American Structuralism saw a number of speciﬁc deﬁnitions of the immediate
+constituent, couched in terms of their search for a “discovery procedure”: a method-
+ological algorithm for describing the syntax of a language. In general, these attempt
+to capture the intuition that “The primary criterion of the immediate constituent
+is the degree in which combinations behave as simple units” (Bazell, 1952/1966, p.
+284). The most well known of the speciﬁc deﬁnitions is Harris’ idea of distributional
+similarity to individual units, with the substitutability test. Essentially, the method
+proceeded by breaking up a construction into constituents by attempting to substitute
+simple structures for possible constituents—if a substitution of a simple form, say,
+man, was substitutable in a construction for a more complex set (like intense young
+man), then the form intense young man was probably a constituent. Harris’s test was
+the beginning of the intuition that a constituent is a kind of equivalence class.
+The ﬁrst formalization of this idea of hierarchical constituency was the phrase-
+structure grammar deﬁned in Chomsky (1956) and further expanded upon (and
+argued against) in Chomsky (1957) and Chomsky (1956/1975). From this time on,
+most generative linguistic theories were based at least in part on context-free gram-
+mars or generalizations of them (such as Head-Driven Phrase Structure Grammar
+(Pollard and Sag, 1994), Lexical-Functional Grammar (Bresnan, 1982), the Mini-
+malist Program (Chomsky, 1995), and Construction Grammar (Kay and Fillmore,
+1999), inter alia); many of these theories used schematic context-free templates
+known as X-bar schemata , which also relied on the notion of syntactic head.X-bar
+schemata
+Shortly after Chomsky’s initial work, the context-free grammar was reinvented
+by Backus (1959) and independently by Naur et al. (1960) in their descriptions of
+the ALGOL programming language; Backus (1996) noted that he was inﬂuenced by
+the productions of Emil Post and that Naur’s work was independent of his (Backus’)
+
+## Page 22
+
+22 APPENDIX D • C ONSTITUENCY GRAMMARS
+own. After this early work, a great number of computational models of natural
+language processing were based on context-free grammars because of the early de-
+velopment of efﬁcient algorithms to parse these grammars (see Chapter 18).
+Thre are various classes of extensions to CFGs, many designed to handle long-
+distance dependencies in the syntax. (Other grammars instead treat long-distance-
+dependent items as being related semantically rather than syntactically (Kay and
+Fillmore 1999, Culicover and Jackendoff 2005).
+One extended formalism is Tree Adjoining Grammar (TAG) (Joshi, 1985).
+The primary TAG data structure is the tree, rather than the rule. Trees come in two
+kinds: initial trees andauxiliary trees . Initial trees might, for example, represent
+simple sentential structures, and auxiliary trees add recursion into a tree. Trees are
+combined by two operations called substitution andadjunction . The adjunction
+operation handles long-distance dependencies. See Joshi (1985) for more details.
+Tree Adjoining Grammar is a member of the family of mildly context-sensitive
+languages .
+We mentioned on page 15 another way of handling long-distance dependencies,
+based on the use of empty categories and co-indexing. The Penn Treebank uses
+this model, which draws (in various Treebank corpora) from the Extended Standard
+Theory and Minimalism (Radford, 1997).
+Readers interested in the grammar of English should get one of the three large
+reference grammars of English: Huddleston and Pullum (2002), Biber et al. (1999),
+and Quirk et al. (1985).
+There are many good introductory textbooks on syntax from different perspec-
+tives. Sag et al. (2003) is an introduction to syntax from a generative perspective, generative
+focusing on the use of phrase-structure rules, uniﬁcation, and the type hierarchy in
+Head-Driven Phrase Structure Grammar. Van Valin, Jr. and La Polla (1997) is an
+introduction from a functional perspective, focusing on cross-linguistic data and on functional
+the functional motivation for syntactic structures.
+Exercises
+D.1 Draw tree structures for the following ATIS phrases:
+1. Dallas
+2. from Denver
+3. after ﬁve p.m.
+4. arriving in Washington
+5. early ﬂights
+6. all redeye ﬂights
+7. on Thursday
+8. a one-way fare
+9. any delays in Denver
+D.2 Draw tree structures for the following ATIS sentences:
+1. Does American Airlines have a ﬂight between ﬁve a.m. and six a.m.?
+2. I would like to ﬂy on American Airlines.
+3. Please repeat that.
+4. Does American 487 have a ﬁrst-class section?
+5. I need to ﬂy between Philadelphia and Atlanta.
+6. What is the fare from Atlanta to Denver?
+
+## Page 23
+
+EXERCISES 23
+7. Is there an American Airlines ﬂight from Philadelphia to Dallas?
+D.3 Assume a grammar that has many VPrules for different subcategorizations,
+as expressed in Section D.3.4, and differently subcategorized verb rules like
+Verb-with-NP-complement . How would the rule for postnominal relative clauses
+(D.4) need to be modiﬁed if we wanted to deal properly with examples like
+the earliest ﬂight that you have ? Recall that in such examples the pronoun
+thatis the object of the verb get. Your rules should allow this noun phrase but
+should correctly rule out the ungrammatical S *I get .
+D.4 Does your solution to the previous problem correctly model the NP the earliest
+ﬂight that I can get ? How about the earliest ﬂight that I think my mother
+wants me to book for her ? Hint: this phenomenon is called long-distance
+dependency .
+D.5 Write rules expressing the verbal subcategory of English auxiliaries; for ex-
+ample, you might have a rule verb-with-bare-stem-VP-complement !can.
+D.6 NPs like Fortune’s ofﬁce ormy uncle’s marks are called possessive orgenitive possessive
+genitive noun phrases. We can model possessive noun phrases by treating the sub-NP
+likeFortune’s ormy uncle’s as a determiner of the following head noun. Write
+grammar rules for English possessives. You may treat ’sas if it were a separate
+word (i.e., as if there were always a space before ’s).
+D.7 Page 8 discussed the need for a Wh-NP constituent. The simplest Wh-NP is
+one of the Wh-pronouns (who, whom, whose, which ). The Wh-words what
+andwhich can be determiners: which four will you have? ,what credit do you
+have with the Duke? Write rules for the different types of Wh-NP s.
+
+## Page 24
+
+24 Appendix D • Constituency Grammars
+Backus, J. W. 1959. The syntax and semantics of the
+proposed international algebraic language of the Zurich
+ACM-GAMM Conference. Information Processing: Pro-
+ceedings of the International Conference on Information
+Processing, Paris . UNESCO.
+Backus, J. W. 1996. Transcript of question and answer ses-
+sion. In R. L. Wexelblat, ed., History of Programming
+Languages , page 162. Academic Press.
+Bazell, C. E. 1952/1966. The correspondence fallacy in
+structural linguistics. In E. P. Hamp, F. W. Householder,
+and R. Austerlitz, eds, Studies by Members of the En-
+glish Department, Istanbul University (3), reprinted in
+Readings in Linguistics II (1966) , 271–298. University of
+Chicago Press.
+Biber, D., S. Johansson, G. Leech, S. Conrad, and E. Fine-
+gan. 1999. Longman Grammar of Spoken and Written
+English . Pearson.
+Bies, A., M. Ferguson, K. Katz, and R. MacIntyre. 1995.
+Bracketing guidelines for Treebank II style Penn Tree-
+bank Project.
+Bloomﬁeld, L. 1914. An Introduction to the Study of Lan-
+guage . Henry Holt and Company.
+Bloomﬁeld, L. 1933. Language . University of Chicago
+Press.
+Bresnan, J., ed. 1982. The Mental Representation of Gram-
+matical Relations . MIT Press.
+Charniak, E. 1997. Statistical parsing with a context-free
+grammar and word statistics. AAAI .
+Chomsky, N. 1956. Three models for the description of
+language. IRE Transactions on Information Theory ,
+2(3):113–124.
+Chomsky, N. 1956/1975. The Logical Structure of Linguistic
+Theory . Plenum.
+Chomsky, N. 1957. Syntactic Structures . Mouton.
+Chomsky, N. 1963. Formal properties of grammars. In R. D.
+Luce, R. Bush, and E. Galanter, eds, Handbook of Math-
+ematical Psychology , volume 2, 323–418. Wiley.
+Chomsky, N. 1995. The Minimalist Program . MIT Press.
+Collins, M. 1999. Head-Driven Statistical Models for Natu-
+ral Language Parsing . Ph.D. thesis, University of Penn-
+sylvania, Philadelphia.
+Culicover, P. W. and R. Jackendoff. 2005. Simpler Syntax .
+Oxford University Press.
+Gazdar, G., E. Klein, G. K. Pullum, and I. A. Sag. 1985.
+Generalized Phrase Structure Grammar . Blackwell.
+Harris, Z. S. 1946. From morpheme to utterance. Language ,
+22(3):161–183.
+Hemphill, C. T., J. Godfrey, and G. Doddington. 1990. The
+ATIS spoken language systems pilot corpus. Speech and
+Natural Language Workshop .
+Hopcroft, J. E. and J. D. Ullman. 1979. Introduction to Au-
+tomata Theory, Languages, and Computation . Addison-
+Wesley.
+Huddleston, R. and G. K. Pullum. 2002. The Cambridge
+Grammar of the English Language . Cambridge Univer-
+sity Press.Joshi, A. K. 1985. Tree adjoining grammars: How
+much context-sensitivity is required to provide reasonable
+structural descriptions? In D. R. Dowty, L. Karttunen,
+and A. Zwicky, eds, Natural Language Parsing , 206–250.
+Cambridge University Press.
+Kay, P. and C. J. Fillmore. 1999. Grammatical constructions
+and linguistic generalizations: The What’s X Doing Y?
+construction. Language , 75(1):1–33.
+Magerman, D. M. 1995. Statistical decision-tree models for
+parsing. ACL.
+Marcus, M. P., G. Kim, M. A. Marcinkiewicz, R. MacIn-
+tyre, A. Bies, M. Ferguson, K. Katz, and B. Schasberger.
+1994. The Penn Treebank: Annotating predicate argu-
+ment structure. HLT.
+Marcus, M. P., B. Santorini, and M. A. Marcinkiewicz. 1993.
+Building a large annotated corpus of English: The Penn
+treebank. Computational Linguistics , 19(2):313–330.
+Naur, P., J. W. Backus, F. L. Bauer, J. Green, C. Katz,
+J. McCarthy, A. J. Perlis, H. Rutishauser, K. Samelson,
+B. Vauquois, J. H. Wegstein, A. van Wijnagaarden, and
+M. Woodger. 1960. Report on the algorithmic language
+ALGOL 60. CACM , 3(5):299–314. Revised in CACM
+6:1, 1-17, 1963.
+Nivre, J., M.-C. de Marneffe, F. Ginter, Y . Goldberg, J. Haji ˇc,
+C. D. Manning, R. McDonald, S. Petrov, S. Pyysalo,
+N. Silveira, R. Tsarfaty, and D. Zeman. 2016. Univer-
+sal Dependencies v1: A multilingual treebank collection.
+LREC .
+Percival, W. K. 1976. On the historical source of immedi-
+ate constituent analysis. In J. D. McCawley, ed., Syntax
+and Semantics Volume 7, Notes from the Linguistic Un-
+derground , 229–242. Academic Press.
+Pollard, C. and I. A. Sag. 1994. Head-Driven Phrase Struc-
+ture Grammar . University of Chicago Press.
+Quirk, R., S. Greenbaum, G. Leech, and J. Svartvik. 1985.
+A Comprehensive Grammar of the English Language .
+Longman.
+Radford, A. 1997. Syntactic Theory and the Structure of
+English: A Minimalist Approach . Cambridge University
+Press.
+Sag, I. A., T. Wasow, and E. M. Bender, eds. 2003. Syntac-
+tic Theory: A Formal Introduction . CSLI Publications,
+Stanford, CA.
+Van Valin, Jr., R. D. and R. La Polla. 1997. Syntax: Structure,
+Meaning, and Function . Cambridge University Press.
+Wundt, W. 1900. V¨olkerpsychologie: eine Untersuchung der
+Entwicklungsgesetze von Sprache, Mythus, und Sitte . W.
+Engelmann, Leipzig. Band II: Die Sprache, Zweiter Teil.
+

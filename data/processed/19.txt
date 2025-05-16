@@ -1,0 +1,1214 @@
+# 19
+
+## Page 1
+
+Speech and Language Processing. Daniel Jurafsky & James H. Martin. Copyright ©2024. All
+rights reserved. Draft of January 12, 2025.
+CHAPTER
+19Dependency Parsing
+Tout mot qui fait partie d’une phrase... Entre lui et ses voisins, l’esprit aperc ¸oit
+des connexions, dont l’ensemble forme la charpente de la phrase.
+[Between each word in a sentence and its neighbors, the mind perceives con-
+nections . These connections together form the scaffolding of the sentence.]
+Lucien Tesni `ere. 1959. ´El´ements de syntaxe structurale, A.1.§4
+The focus of the last chapter was on context-free grammars and constituent-
+based representations. Here we present another important family of grammar for-
+malisms called dependency grammars . In dependency formalisms, phrasal con-dependency
+grammars
+stituents and phrase-structure rules do not play a direct role. Instead, the syntactic
+structure of a sentence is described solely in terms of directed binary grammatical
+relations between the words , as in the following dependency parse:
+Iprefer themorning ﬂight through Denvernsubjobj
+det
+compoundnmod
+caseroot
+(19.1)
+Relations among the words are illustrated above the sentence with directed, labeled
+arcs from heads todependents . We call this a typed dependency structure becausetyped
+dependency
+the labels are drawn from a ﬁxed inventory of grammatical relations. A root node
+explicitly marks the root of the tree, the head of the entire structure.
+Figure 19.1 on the next page shows the dependency analysis from Eq. 19.1 but
+visualized as a tree, alongside its corresponding phrase-structure analysis of the kind
+given in the prior chapter. Note the absence of nodes corresponding to phrasal con-
+stituents or lexical categories in the dependency parse; the internal structure of the
+dependency parse consists solely of directed relations between words. These head-
+dependent relationships directly encode important information that is often buried in
+the more complex phrase-structure parses. For example, the arguments to the verb
+prefer are directly linked to it in the dependency structure, while their connection
+to the main verb is more distant in the phrase-structure tree. Similarly, morning
+andDenver , modiﬁers of ﬂight , are linked to it directly in the dependency structure.
+This fact that the head-dependent relations are a good proxy for the semantic rela-
+tionship between predicates and their arguments is an important reason why depen-
+dency grammars are currently more common than constituency grammars in natural
+language processing.
+Another major advantage of dependency grammars is their ability to deal with
+languages that have a relatively free word order . For example, word order in Czech free word order
+can be much more ﬂexible than in English; a grammatical object might occur before
+or after a location adverbial . A phrase-structure grammar would need a separate rule
+
+## Page 2
+
+2CHAPTER 19 • D EPENDENCY PARSING
+prefer
+ﬂight
+Denver
+throughmorning theIS
+VP
+NP
+Nom
+PP
+NP
+Pro
+DenverP
+throughNom
+Noun
+ﬂightNom
+Noun
+morningDet
+theVerb
+preferNP
+Pro
+I
+Figure 19.1 Dependency and constituent analyses for I prefer the morning ﬂight through Denver.
+for each possible place in the parse tree where such an adverbial phrase could occur.
+A dependency-based approach can have just one link type representing this particu-
+lar adverbial relation; dependency grammar approaches can thus abstract away a bit
+more from word order information.
+In the following sections, we’ll give an inventory of relations used in dependency
+parsing, discuss two families of parsing algorithms (transition-based, and graph-
+based), and discuss evaluation.
+19.1 Dependency Relations
+The traditional linguistic notion of grammatical relation provides the basis for thegrammatical
+relation
+binary relations that comprise these dependency structures. The arguments to these
+relations consist of a head and a dependent . The head plays the role of the central head
+dependent organizing word, and the dependent as a kind of modiﬁer. The head-dependent rela-
+tionship is made explicit by directly linking heads to the words that are immediately
+dependent on them.
+In addition to specifying the head-dependent pairs, dependency grammars allow
+us to classify the kinds of grammatical relations, or grammatical function that thegrammatical
+function
+dependent plays with respect to its head. These include familiar notions such as
+subject ,direct object andindirect object . In English these notions strongly corre-
+late with, but by no means determine, both position in a sentence and constituent
+type and are therefore somewhat redundant with the kind of information found in
+phrase-structure trees. However, in languages with more ﬂexible word order, the
+information encoded directly in these grammatical relations is critical since phrase-
+based constituent syntax provides little help.
+Linguists have developed taxonomies of relations that go well beyond the famil-
+iar notions of subject and object. While there is considerable variation from theory
+
+## Page 3
+
+19.1 • D EPENDENCY RELATIONS 3
+Clausal Argument Relations Description
+NSUBJ Nominal subject
+OBJ Direct object
+IOBJ Indirect object
+CCOMP Clausal complement
+Nominal Modiﬁer Relations Description
+NMOD Nominal modiﬁer
+AMOD Adjectival modiﬁer
+APPOS Appositional modiﬁer
+DET Determiner
+CASE Prepositions, postpositions and other case markers
+Other Notable Relations Description
+CONJ Conjunct
+CC Coordinating conjunction
+Figure 19.2 Some of the Universal Dependency relations (de Marneffe et al., 2021).
+to theory, there is enough commonality that cross-linguistic standards have been
+developed. The Universal Dependencies (UD) project (de Marneffe et al., 2021),Universal
+Dependencies
+an open community effort to annotate dependencies and other aspects of grammar
+across more than 100 languages, provides an inventory of 37 dependency relations.
+Fig. 19.2 shows a subset of the UD relations and Fig. 19.3 provides some examples.
+The motivation for all of the relations in the Universal Dependency scheme is
+beyond the scope of this chapter, but the core set of frequently used relations can be
+broken into two sets: clausal relations that describe syntactic roles with respect to a
+predicate (often a verb), and modiﬁer relations that categorize the ways that words
+can modify their heads.
+Consider, for example, the following sentence:
+United canceled themorning ﬂights toHoustonnsubjobj
+det
+compoundnmod
+caseroot
+(19.2)
+Here the clausal relations NSUBJ and OBJidentify the subject and direct object of
+the predicate cancel , while the NMOD ,DET, and CASE relations denote modiﬁers of
+the nouns ﬂights andHouston .
+19.1.1 Dependency Formalisms
+A dependency structure can be represented as a directed graph G= (V;A), consisting
+of a set of vertices V, and a set of ordered pairs of vertices A, which we’ll call arcs.
+For the most part we will assume that the set of vertices, V, corresponds exactly
+to the set of words in a given sentence. However, they might also correspond to
+punctuation, or when dealing with morphologically complex languages the set of
+vertices might consist of stems and afﬁxes. The set of arcs, A, captures the head-
+dependent and grammatical function relationships between the elements in V.
+Different grammatical theories or formalisms may place further constraints on
+these dependency structures. Among the more frequent restrictions are that the struc-
+tures must be connected, have a designated root node, and be acyclic or planar. Of
+most relevance to the parsing approaches discussed in this chapter is the common,
+
+## Page 4
+
+4CHAPTER 19 • D EPENDENCY PARSING
+Relation Examples with head anddependent
+NSUBJ United canceled the ﬂight.
+OBJ United diverted theﬂight to Reno.
+Webooked her the ﬁrst ﬂight to Miami.
+IOBJ Webooked herthe ﬂight to Miami.
+COMPOUND We took the morning ﬂight .
+NMOD ﬂight toHouston .
+AMOD Book the cheapest ﬂight .
+APPOS United , aunit of UAL, matched the fares.
+DET The ﬂight was canceled.
+Which ﬂight was delayed?
+CONJ Weﬂewto Denver and drove to Steamboat.
+CC We ﬂew to Denver anddrove to Steamboat.
+CASE Book the ﬂight through Houston .
+Figure 19.3 Examples of some Universal Dependency relations.
+computationally-motivated, restriction to rooted trees. That is, a dependency treedependency
+tree
+is a directed graph that satisﬁes the following constraints:
+1. There is a single designated root node that has no incoming arcs.
+2. With the exception of the root node, each vertex has exactly one incoming arc.
+3. There is a unique path from the root node to each vertex in V.
+Taken together, these constraints ensure that each word has a single head, that the
+dependency structure is connected, and that there is a single root node from which
+one can follow a unique directed path to each of the words in the sentence.
+19.1.2 Projectivity
+The notion of projectivity imposes an additional constraint that is derived from the
+order of the words in the input. An arc from a head to a dependent is said to be
+projective if there is a path from the head to every word that lies between the head projective
+and the dependent in the sentence. A dependency tree is then said to be projective if
+all the arcs that make it up are projective. All the dependency trees we’ve seen thus
+far have been projective. There are, however, many valid constructions which lead
+to non-projective trees, particularly in languages with relatively ﬂexible word order.
+Consider the following example.
+JetBlue canceled our ﬂight this morning which was already latensubjobjobl
+detacl:relcl
+det nsubjcop
+advroot
+(19.3)
+In this example, the arc from ﬂight to its modiﬁer lateis non-projective since there
+is no path from ﬂight to the intervening words thisandmorning . As we can see from
+this diagram, projectivity (and non-projectivity) can be detected in the way we’ve
+been drawing our trees. A dependency tree is projective if it can be drawn with
+no crossing edges. Here there is no way to link ﬂight to its dependent latewithout
+crossing the arc that links morning to its head.
+
+## Page 5
+
+19.1 • D EPENDENCY RELATIONS 5
+Our concern with projectivity arises from two related issues. First, the most
+widely used English dependency treebanks were automatically derived from phrase-
+structure treebanks through the use of head-ﬁnding rules. The trees generated in such
+a fashion will always be projective, and hence will be incorrect when non-projective
+examples like this one are encountered.
+Second, there are computational limitations to the most widely used families of
+parsing algorithms. The transition-based approaches discussed in Section 19.2 can
+only produce projective trees, hence any sentences with non-projective structures
+will necessarily contain some errors. This limitation is one of the motivations for
+the more ﬂexible graph-based parsing approach described in Section 19.3.
+19.1.3 Dependency Treebanks
+Treebanks play a critical role in the development and evaluation of dependency
+parsers. They are used for training parsers, they act as the gold labels for evaluating
+parsers, and they also provide useful information for corpus linguistics studies.
+Dependency treebanks are created by having human annotators directly generate
+dependency structures for a given corpus, or by hand-correcting the output of an
+automatic parser. A few early treebanks were also based on using a deterministic
+process to translate existing constituent-based treebanks into dependency trees.
+The largest open community project for building dependency trees is the Univer-
+sal Dependencies project at https://universaldependencies.org/ introduced
+above, which currently has almost 200 dependency treebanks in more than 100 lan-
+guages (de Marneffe et al., 2021). Here are a few UD examples showing dependency
+trees for sentences in Spanish, Basque, and Mandarin Chinese:
+VERB ADP DET NOUN ADP DET NUM PUNCT
+Subiremos a el tren a las cinco .
+we-will-board on the train at the ﬁve .obl
+detcase
+detobl:tmod
+casepunct
+[Spanish] Subiremos al tren a las cinco. “We will be boarding the train at ﬁve.” (19.4)
+NOUN NOUN VERB AUX PUNCT
+Ekaitzak itsasontzia hondoratu du .
+storm (Erg.) ship (Abs.) sunk has .nsubj
+obj auxpunct
+[Basque] Ekaitzak itsasontzia hondoratu du. “The storm has sunk the ship.” (19.5)
+
+## Page 6
+
+6CHAPTER 19 • D EPENDENCY PARSING
+ADV PRON NOUN ADV VERB VERB NOUN
+但我昨天 才 收 到信
+but I yesterday only-then receive arrive letter .adv
+nsubj
+obj:tmod
+advmod compound:vvobj
+[Chinese] 但我昨天才收到信“But I didn’t receive the letter until yesterday” (19.6)
+19.2 Transition-Based Dependency Parsing
+Our ﬁrst approach to dependency parsing is called transition-based parsing. This transition-based
+architecture draws on shift-reduce parsing , a paradigm originally developed for
+analyzing programming languages (Aho and Ullman, 1972). In transition-based
+parsing we’ll have a stack on which we build the parse, a buffer of tokens to be
+parsed, and a parser which takes actions on the parse via a predictor called an oracle ,
+as illustrated in Fig. 19.4.
+wnw1w2s2...s1snParserInput buﬀerStackOracleLEFTARCRIGHTARCSHIFTActionDependencyRelationsw3w2
+Figure 19.4 Basic transition-based parser. The parser examines the top two elements of the
+stack and selects an action by consulting an oracle that examines the current conﬁguration.
+The parser walks through the sentence left-to-right, successively shifting items
+from the buffer onto the stack. At each time point we examine the top two elements
+on the stack, and the oracle makes a decision about what transition to apply to build
+the parse. The possible transitions correspond to the intuitive actions one might take
+in creating a dependency tree by examining the words in a single pass over the input
+from left to right (Covington, 2001):
+• Assign the current word as the head of some previously seen word,
+• Assign some previously seen word as the head of the current word,
+• Postpone dealing with the current word, storing it for later processing.
+We’ll formalize this intuition with the following three transition operators that
+will operate on the top two elements of the stack:
+•LEFT ARC: Assert a head-dependent relation between the word at the top of
+the stack and the second word; remove the second word from the stack.
+•RIGHT ARC: Assert a head-dependent relation between the second word on
+the stack and the word at the top; remove the top word from the stack;
+
+## Page 7
+
+19.2 • T RANSITION -BASED DEPENDENCY PARSING 7
+•SHIFT : Remove the word from the front of the input buffer and push it onto
+the stack.
+We’ll sometimes call operations like LEFT ARCand RIGHT ARCreduce operations,
+based on a metaphor from shift-reduce parsing, in which reducing means combin-
+ing elements on the stack. There are some preconditions for using operators. The
+LEFT ARCoperator cannot be applied when ROOT is the second element of the stack
+(since by deﬁnition the ROOT node cannot have any incoming arcs). And both the
+LEFT ARCand RIGHT ARCoperators require two elements to be on the stack to be
+applied.
+This particular set of operators implements what is known as the arc standard arc standard
+approach to transition-based parsing (Covington 2001, Nivre 2003). In arc standard
+parsing the transition operators only assert relations between elements at the top of
+the stack, and once an element has been assigned its head it is removed from the
+stack and is not available for further processing. As we’ll see, there are alterna-
+tive transition systems which demonstrate different parsing behaviors, but the arc
+standard approach is quite effective and is simple to implement.
+The speciﬁcation of a transition-based parser is quite simple, based on repre-
+senting the current state of the parse as a conﬁguration : the stack, an input buffer conﬁguration
+of words or tokens, and a set of relations representing a dependency tree. Parsing
+means making a sequence of transitions through the space of possible conﬁgura-
+tions. We start with an initial conﬁguration in which the stack contains the ROOT
+node, the buffer has the tokens in the sentence, and an empty set of relations repre-
+sents the parse. In the ﬁnal goal state, the stack and the word list should be empty,
+and the set of relations will represent the ﬁnal parse. Fig. 19.5 gives the algorithm.
+function DEPENDENCY PARSE (words )returns dependency tree
+state f[root], [ words ], []g; initial conﬁguration
+while state not ﬁnal
+t ORACLE (state ) ; choose a transition operator to apply
+state APPLY (t,state ) ; apply it, creating a new state
+return state
+Figure 19.5 A generic transition-based dependency parser
+At each step, the parser consults an oracle (we’ll come back to this shortly) that
+provides the correct transition operator to use given the current conﬁguration. It then
+applies that operator to the current conﬁguration, producing a new conﬁguration.
+The process ends when all the words in the sentence have been consumed and the
+ROOT node is the only element remaining on the stack.
+The efﬁciency of transition-based parsers should be apparent from the algorithm.
+The complexity is linear in the length of the sentence since it is based on a single
+left to right pass through the words in the sentence. (Each word must ﬁrst be shifted
+onto the stack and then later reduced.)
+Note that unlike the dynamic programming and search-based approaches dis-
+cussed in Chapter 18, this approach is a straightforward greedy algorithm—the or-
+acle provides a single choice at each step and the parser proceeds with that choice,
+no other options are explored, no backtracking is employed, and a single parse is
+returned in the end.
+Figure 19.6 illustrates the operation of the parser with the sequence of transitions
+
+## Page 8
+
+8CHAPTER 19 • D EPENDENCY PARSING
+leading to a parse for the following example.
+Book methemorning ﬂightiobjobj
+det
+compoundroot
+(19.7)
+Let’s consider the state of the conﬁguration at Step 2, after the word mehas been
+pushed onto the stack.
+Stack Word List Relations
+[root, book, me] [the, morning, ﬂight]
+The correct operator to apply here is RIGHT ARCwhich assigns book as the head of
+meand pops mefrom the stack resulting in the following conﬁguration.
+Stack Word List Relations
+[root, book] [the, morning, ﬂight] (book!me)
+After several subsequent applications of the SHIFT operator, the conﬁguration in
+Step 6 looks like the following:
+Stack Word List Relations
+[root, book, the, morning, ﬂight] [] (book!me)
+Here, all the remaining words have been passed onto the stack and all that is left
+to do is to apply the appropriate reduce operators. In the current conﬁguration, we
+employ the LEFT ARCoperator resulting in the following state.
+Stack Word List Relations
+[root, book, the, ﬂight] [] (book!me)
+(morning ﬂight)
+At this point, the parse for this sentence consists of the following structure.
+Book methemorning ﬂightiobj compound
+(19.8)
+There are several important things to note when examining sequences such as
+the one in Figure 19.6. First, the sequence given is not the only one that might lead
+to a reasonable parse. In general, there may be more than one path that leads to the
+same result, and due to ambiguity, there may be other transition sequences that lead
+to different equally valid parses.
+Second, we are assuming that the oracle always provides the correct operator
+at each point in the parse—an assumption that is unlikely to be true in practice.
+As a result, given the greedy nature of this algorithm, incorrect choices will lead to
+incorrect parses since the parser has no opportunity to go back and pursue alternative
+choices. Section 19.2.4 will introduce several techniques that allow transition-based
+approaches to explore the search space more fully.
+
+## Page 9
+
+19.2 • T RANSITION -BASED DEPENDENCY PARSING 9
+Step Stack Word List Action Relation Added
+0 [root] [book, me, the, morning, ﬂight] SHIFT
+1 [root, book] [me, the, morning, ﬂight] SHIFT
+2 [root, book, me] [the, morning, ﬂight] RIGHT ARC (book!me)
+3 [root, book] [the, morning, ﬂight] SHIFT
+4 [root, book, the] [morning, ﬂight] SHIFT
+5 [root, book, the, morning] [ﬂight] SHIFT
+6 [root, book, the, morning, ﬂight] [] LEFT ARC (morning ﬂight)
+7 [root, book, the, ﬂight] [] LEFT ARC (the ﬂight)
+8 [root, book, ﬂight] [] RIGHT ARC (book!ﬂight)
+9 [root, book] [] RIGHT ARC (root!book)
+10 [root] [] Done
+Figure 19.6 Trace of a transition-based parse.
+Finally, for simplicity, we have illustrated this example without the labels on
+the dependency relations. To produce labeled trees, we can parameterize the LEFT -
+ARCand RIGHT ARCoperators with dependency labels, as in LEFT ARC(NSUBJ ) or
+RIGHT ARC(OBJ). This is equivalent to expanding the set of transition operators from
+our original set of three to a set that includes LEFT ARCand RIGHT ARCoperators for
+each relation in the set of dependency relations being used, plus an additional one
+for the SHIFT operator. This, of course, makes the job of the oracle more difﬁcult
+since it now has a much larger set of operators from which to choose.
+19.2.1 Creating an Oracle
+The oracle for greedily selecting the appropriate transition is trained by supervised
+machine learning. As with all supervised machine learning methods, we will need
+training data: conﬁgurations annotated with the correct transition to take. We can
+draw these from dependency trees. And we need to extract features of the con-
+ﬁguration. We’ll introduce neural classiﬁers that represent the conﬁguration via
+embeddings, as well as classic systems that use hand-designed features.
+Generating Training Data
+The oracle from the algorithm in Fig. 19.5 takes as input a conﬁguration and returns a
+transition operator. Therefore, to train a classiﬁer, we will need conﬁgurations paired
+with transition operators (i.e., LEFT ARC,RIGHT ARC, or SHIFT ). Unfortunately,
+treebanks pair entire sentences with their corresponding trees, not conﬁgurations
+with transitions.
+To generate the required training data, we employ the oracle-based parsing algo-
+rithm in a clever way. We supply our oracle with the training sentences to be parsed
+along with their corresponding reference parses from the treebank. To produce train-
+ing instances, we then simulate the operation of the parser by running the algorithm
+and relying on a new training oracle to give us correct transition operators for each training oracle
+successive conﬁguration.
+To see how this works, let’s ﬁrst review the operation of our parser. It begins with
+a default initial conﬁguration where the stack contains the ROOT , the input list is just
+the list of words, and the set of relations is empty. The LEFT ARCand RIGHT ARC
+operators each add relations between the words at the top of the stack to the set of
+relations being accumulated for a given sentence. Since we have a gold-standard
+reference parse for each training sentence, we know which dependency relations are
+valid for a given sentence. Therefore, we can use the reference parse to guide the
+
+## Page 10
+
+10 CHAPTER 19 • D EPENDENCY PARSING
+Step Stack Word List Predicted Action
+0 [root] [book, the, ﬂight, through, houston] SHIFT
+1 [root, book] [the, ﬂight, through, houston] SHIFT
+2 [root, book, the] [ﬂight, through, houston] SHIFT
+3 [root, book, the, ﬂight] [through, houston] LEFT ARC
+4 [root, book, ﬂight] [through, houston] SHIFT
+5 [root, book, ﬂight, through] [houston] SHIFT
+6 [root, book, ﬂight, through, houston] [] LEFT ARC
+7 [root, book, ﬂight, houston ] [] RIGHT ARC
+8 [root, book, ﬂight] [] RIGHT ARC
+9 [root, book] [] RIGHT ARC
+10 [root] [] Done
+Figure 19.7 Generating training items consisting of conﬁguration/predicted action pairs by simulating a parse
+with a given reference parse.
+selection of operators as the parser steps through a sequence of conﬁgurations.
+To be more precise, given a reference parse and a conﬁguration, the training
+oracle proceeds as follows:
+• Choose LEFT ARCif it produces a correct head-dependent relation given the
+reference parse and the current conﬁguration,
+• Otherwise, choose RIGHT ARCif (1) it produces a correct head-dependent re-
+lation given the reference parse and (2) all of the dependents of the word at
+the top of the stack have already been assigned,
+• Otherwise, choose SHIFT .
+The restriction on selecting the RIGHT ARCoperator is needed to ensure that a
+word is not popped from the stack, and thus lost to further processing, before all its
+dependents have been assigned to it.
+More formally, during training the oracle has access to the following:
+• A current conﬁguration with a stack Sand a set of dependency relations Rc
+• A reference parse consisting of a set of vertices Vand a set of dependency
+relations Rp
+Given this information, the oracle chooses transitions as follows:
+LEFT ARC(r):if(S1r S2)2Rp
+RIGHT ARC(r):if(S2r S1)2Rpand8r0;w s:t:(S1r0w)2Rpthen(S1r0w)2Rc
+SHIFT :otherwise
+Let’s walk through the processing of the following example as shown in Fig. 19.7.
+Book theﬂight through Houstonobj
+detnmod
+caseroot
+(19.9)
+At Step 1, LEFT ARCis not applicable in the initial conﬁguration since it asserts
+a relation, (root book), not in the reference answer; RIGHT ARCdoes assert a
+relation contained in the ﬁnal answer (root !book), however book has not been
+attached to any of its dependents yet, so we have to defer, leaving SHIFT as the only
+
+## Page 11
+
+19.2 • T RANSITION -BASED DEPENDENCY PARSING 11
+possible action. The same conditions hold in the next two steps. In step 3, LEFT ARC
+is selected to link theto its head.
+Now consider the situation in Step 4.
+Stack Word buffer Relations
+[root, book, ﬂight] [through, Houston] (the ﬂight)
+Here, we might be tempted to add a dependency relation between book andﬂight ,
+which is present in the reference parse. But doing so now would prevent the later
+attachment of Houston since ﬂight would have been removed from the stack. For-
+tunately, the precondition on choosing RIGHT ARCprevents this choice and we’re
+again left with SHIFT as the only viable option. The remaining choices complete the
+set of operators needed for this example.
+To recap, we derive appropriate training instances consisting of conﬁguration-
+transition pairs from a treebank by simulating the operation of a parser in the con-
+text of a reference dependency tree. We can deterministically record correct parser
+actions at each step as we progress through each training example, thereby creating
+the training set we require.
+19.2.2 A feature-based classiﬁer
+We’ll now introduce two classiﬁers for choosing transitions, here a classic feature-
+based algorithm and in the next section a neural classiﬁer using embedding features.
+Featured-based classiﬁers generally use the same features we’ve seen with part-
+of-speech tagging and partial parsing: Word forms, lemmas, parts of speech, the
+head, and the dependency relation to the head. Other features may be relevant for
+some languages, for example morphosyntactic features like case marking on subjects
+or objects. The features are extracted from the training conﬁgurations , which consist
+of the stack, the buffer and the current set of relations. Most useful are features
+referencing the top levels of the stack, the words near the front of the buffer, and the
+dependency relations already associated with any of those elements.
+We’ll use a feature template as we did for sentiment analysis and part-of-speechfeature
+template
+tagging. Feature templates allow us to automatically generate large numbers of spe-
+ciﬁc features from a training set. For example, consider the following feature tem-
+plates that are based on single positions in a conﬁguration.
+hs1:w;opi;hs2:w;opihs1:t;opi;hs2:t;opi
+hb1:w;opi;hb1:t;opihs1:wt;opi (19.10)
+Here features are denoted as location :property , where s= stack, b= the word
+buffer, w= word forms, t= part-of-speech, and op= operator. Thus the feature for
+the word form at the top of the stack would be s1:w, the part of speech tag at the
+front of the buffer b1:t, and the concatenated feature s1:wtrepresents the word form
+concatenated with the part of speech of the word at the top of the stack. Consider
+applying these templates to the following intermediate conﬁguration derived from a
+training oracle for (19.2).
+Stack Word buffer Relations
+[root, canceled, ﬂights] [to Houston] (canceled!United)
+(ﬂights!morning)
+(ﬂights!the)
+
+## Page 12
+
+12 CHAPTER 19 • D EPENDENCY PARSING
+The correct transition here is SHIFT (you should convince yourself of this before
+proceeding). The application of our set of feature templates to this conﬁguration
+would result in the following set of instantiated features.
+hs1:w=ﬂights ;op=shifti (19.11)
+hs2:w=canceled ;op=shifti
+hs1:t=NNS;op=shifti
+hs2:t=VBD;op=shifti
+hb1:w=to;op=shifti
+hb1:t=TO;op=shifti
+hs1:wt=ﬂightsNNS ;op=shifti
+Given that the left and right arc transitions operate on the top two elements of the
+stack, features that combine properties from these positions are even more useful.
+For example, a feature like s1:ts2:tconcatenates the part of speech tag of the word
+at the top of the stack with the tag of the word beneath it.
+hs1:ts2:t=NNSVBD ;op=shifti (19.12)
+Given the training data and features, any classiﬁer, like multinomial logistic re-
+gression or support vector machines, can be used.
+19.2.3 A neural classiﬁer
+The oracle can also be implemented by a neural classiﬁer. A standard architecture
+is simply to pass the sentence through an encoder, then take the presentation of the
+top 2 words on the stack and the ﬁrst word of the buffer, concatenate them, and
+present to a feedforward network that predicts the transition to take (Kiperwasser
+and Goldberg, 2016; Kulmizev et al., 2019). Fig. 19.8 sketches this model. Learning
+can be done with cross-entropy loss.
+w…s2...s1Input buﬀerStackLEFTARCRIGHTARCSHIFTActionDependencyRelationsw3w2ENCODERw1w2w3w4w5w6Parser OracleSoftmaxFFNws1s2e(w)e(s1)e(s2)
+Figure 19.8 Neural classiﬁer for the oracle for the transition-based parser. The parser takes
+the top 2 words on the stack and the ﬁrst word of the buffer, represents them by their encodings
+(from running the whole sentence through the encoder), concatenates the embeddings and
+passes through a softmax to choose a parser action (transition).
+
+## Page 13
+
+19.2 • T RANSITION -BASED DEPENDENCY PARSING 13
+19.2.4 Advanced Methods in Transition-Based Parsing
+The basic transition-based approach can be elaborated in a number of ways to im-
+prove performance by addressing some of the most obvious ﬂaws in the approach.
+Alternative Transition Systems
+The arc-standard transition system described above is only one of many possible sys-
+tems. A frequently used alternative is the arc eager transition system. The arc eager arc eager
+approach gets its name from its ability to assert rightward relations much sooner
+than in the arc standard approach. To see this, let’s revisit the arc standard trace of
+Example 19.9, repeated here.
+Book theﬂight through Houstonobj
+detnmod
+caseroot
+Consider the dependency relation between book andﬂight in this analysis. As
+is shown in Fig. 19.7, an arc-standard approach would assert this relation at Step 8,
+despite the fact that book andﬂight ﬁrst come together on the stack much earlier at
+Step 4. The reason this relation can’t be captured at this point is due to the presence
+of the postnominal modiﬁer through Houston . In an arc-standard approach, depen-
+dents are removed from the stack as soon as they are assigned their heads. If ﬂight
+had been assigned book as its head in Step 4, it would no longer be available to serve
+as the head of Houston .
+While this delay doesn’t cause any issues in this example, in general the longer
+a word has to wait to get assigned its head the more opportunities there are for
+something to go awry. The arc-eager system addresses this issue by allowing words
+to be attached to their heads as early as possible, before all the subsequent words
+dependent on them have been seen. This is accomplished through minor changes to
+theLEFT ARCand RIGHT ARCoperators and the addition of a new REDUCE operator.
+•LEFT ARC: Assert a head-dependent relation between the word at the front of
+the input buffer and the word at the top of the stack; pop the stack.
+•RIGHT ARC: Assert a head-dependent relation between the word on the top of
+the stack and the word at the front of the input buffer; shift the word at the
+front of the input buffer to the stack.
+•SHIFT : Remove the word from the front of the input buffer and push it onto
+the stack.
+•REDUCE : Pop the stack.
+The LEFT ARCand RIGHT ARCoperators are applied to the top of the stack and
+the front of the input buffer, instead of the top two elements of the stack as in the
+arc-standard approach. The RIGHT ARCoperator now moves the dependent to the
+stack from the buffer rather than removing it, thus making it available to serve as the
+head of following words. The new REDUCE operator removes the top element from
+the stack. Together these changes permit a word to be eagerly assigned its head and
+still allow it to serve as the head for later dependents. The trace shown in Fig. 19.9
+illustrates the new decision sequence for this example.
+In addition to demonstrating the arc-eager transition system, this example demon-
+strates the power and ﬂexibility of the overall transition-based approach. We were
+able to swap in a new transition system without having to make any changes to the
+
+## Page 14
+
+14 CHAPTER 19 • D EPENDENCY PARSING
+Step Stack Word List Action Relation Added
+0 [root] [book, the, ﬂight, through, houston] RIGHT ARC (root!book)
+1 [root, book] [the, ﬂight, through, houston] SHIFT
+2 [root, book, the] [ﬂight, through, houston] LEFT ARC (the ﬂight)
+3 [root, book] [ﬂight, through, houston] RIGHT ARC (book!ﬂight)
+4 [root, book, ﬂight] [through, houston] SHIFT
+5 [root, book, ﬂight, through] [houston] LEFT ARC (through houston)
+6 [root, book, ﬂight] [houston] RIGHT ARC (ﬂight!houston)
+7 [root, book, ﬂight, houston] [] REDUCE
+8 [root, book, ﬂight] [] REDUCE
+9 [root, book] [] REDUCE
+10 [root] [] Done
+Figure 19.9 A processing trace of Book the ﬂight through Houston using the arc-eager transition operators.
+underlying parsing algorithm. This ﬂexibility has led to the development of a di-
+verse set of transition systems that address different aspects of syntax and semantics
+including: assigning part of speech tags (Choi and Palmer, 2011a), allowing the
+generation of non-projective dependency structures (Nivre, 2009), assigning seman-
+tic roles (Choi and Palmer, 2011b), and parsing texts containing multiple languages
+(Bhat et al., 2017).
+Beam Search
+The computational efﬁciency of the transition-based approach discussed earlier de-
+rives from the fact that it makes a single pass through the sentence, greedily making
+decisions without considering alternatives. Of course, this is also a weakness – once
+a decision has been made it can not be undone, even in the face of overwhelming
+evidence arriving later in a sentence. We can use beam search to explore alterna- beam search
+tive decision sequences. Recall from Chapter 9 that beam search uses a breadth-ﬁrst
+search strategy with a heuristic ﬁlter that prunes the search frontier to stay within a
+ﬁxed-size beam width . beam width
+In applying beam search to transition-based parsing, we’ll elaborate on the al-
+gorithm given in Fig. 19.5. Instead of choosing the single best transition operator
+at each iteration, we’ll apply all applicable operators to each state on an agenda and
+then score the resulting conﬁgurations. We then add each of these new conﬁgura-
+tions to the frontier, subject to the constraint that there has to be room within the
+beam. As long as the size of the agenda is within the speciﬁed beam width, we can
+add new conﬁgurations to the agenda. Once the agenda reaches the limit, we only
+add new conﬁgurations that are better than the worst conﬁguration on the agenda
+(removing the worst element so that we stay within the limit). Finally, to insure that
+we retrieve the best possible state on the agenda, the while loop continues as long as
+there are non-ﬁnal states on the agenda.
+The beam search approach requires a more elaborate notion of scoring than we
+used with the greedy algorithm. There, we assumed that the oracle would be a
+supervised classiﬁer that chose the best transition operator based on features of the
+current conﬁguration. This choice can be viewed as assigning a score to all the
+possible transitions and picking the best one.
+ˆT(c) =argmaxScore (t;c)
+With beam search we are now searching through the space of decision sequences,
+so it makes sense to base the score for a conﬁguration on its entire history. So we
+can deﬁne the score for a new conﬁguration as the score of its predecessor plus the
+
+## Page 15
+
+19.3 • G RAPH -BASED DEPENDENCY PARSING 15
+score of the operator used to produce it.
+ConﬁgScore (c0) = 0:0
+ConﬁgScore (ci) = ConﬁgScore (ci 1)+Score (ti;ci 1)
+This score is used both in ﬁltering the agenda and in selecting the ﬁnal answer. The
+new beam search version of transition-based parsing is given in Fig. 19.10.
+function DEPENDENCY BEAM PARSE (words ,width )returns dependency tree
+state f[root], [ words ], [], 0.0 g;initial conﬁguration
+agenda hstatei ;initial agenda
+while agenda contains non-ﬁnal states
+newagenda hi
+for each state2agenda do
+for all ftjt2VALID OPERATORS (state )gdo
+child APPLY (t,state )
+newagenda ADDTOBEAM (child ,newagenda ,width )
+agenda newagenda
+return BESTOF(agenda )
+function ADDTOBEAM (state ,agenda ,width )returns updated agenda
+ifLENGTH (agenda )<width then
+agenda INSERT (state ,agenda )
+else if SCORE (state )>SCORE (WORST OF(agenda ))
+agenda REMOVE (WORST OF(agenda ))
+agenda INSERT (state ,agenda )
+return agenda
+Figure 19.10 Beam search applied to transition-based dependency parsing.
+19.3 Graph-Based Dependency Parsing
+Graph-based methods are the second important family of dependency parsing algo-
+rithms. Graph-based parsers are more accurate than transition-based parsers, espe-
+cially on long sentences; transition-based methods have trouble when the heads are
+very far from the dependents (McDonald and Nivre, 2011). Graph-based methods
+avoid this difﬁculty by scoring entire trees, rather than relying on greedy local de-
+cisions. Furthermore, unlike transition-based approaches, graph-based parsers can
+produce non-projective trees. Although projectivity is not a signiﬁcant issue for
+English, it is deﬁnitely a problem for many of the world’s languages.
+Graph-based dependency parsers search through the space of possible trees for a
+given sentence for a tree (or trees) that maximize some score. These methods encode
+the search space as directed graphs and employ methods drawn from graph theory
+to search the space for optimal solutions. More formally, given a sentence Swe’re
+looking for the best dependency tree in Gs, the space of all possible trees for that
+sentence, that maximizes some score.
+ˆT(S) =argmax
+t2GSScore (t;S)
+
+## Page 16
+
+16 CHAPTER 19 • D EPENDENCY PARSING
+We’ll make the simplifying assumption that this score can be edge-factored , edge-factored
+meaning that the overall score for a tree is the sum of the scores of each of the scores
+of the edges that comprise the tree.
+Score (t;S) =X
+e2tScore (e)
+Graph-based algorithms have to solve two problems: (1) assigning a score to
+each edge, and (2) ﬁnding the best parse tree given the scores of all potential edges.
+In the next few sections we’ll introduce solutions to these two problems, beginning
+with the second problem of ﬁnding trees, and then giving a feature-based and a
+neural algorithm for solving the ﬁrst problem of assigning scores.
+19.3.1 Parsing via ﬁnding the maximum spanning tree
+In graph-based parsing, given a sentence Swe start by creating a graph Gwhich is a
+fully-connected, weighted, directed graph where the vertices are the input words and
+the directed edges represent all possible head-dependent assignments. We’ll include
+an additional ROOT node with outgoing edges directed at all of the other vertices.
+The weights of each edge in Greﬂect the score for each possible head-dependent
+relation assigned by some scoring algorithm.
+It turns out that ﬁnding the best dependency parse for Sis equivalent to ﬁnding
+themaximum spanning tree over G. A spanning tree over a graph Gis a subsetmaximum
+spanning tree
+ofGthat is a tree and covers all the vertices in G; a spanning tree over Gthat starts
+from the ROOT is a valid parse of S. A maximum spanning tree is the spanning tree
+with the highest score. Thus a maximum spanning tree of Gemanating from the
+ROOT is the optimal dependency parse for the sentence.
+A directed graph for the example Book that ﬂight is shown in Fig. 19.11, with the
+maximum spanning tree corresponding to the desired parse shown in blue. For ease
+of exposition, we’ll describe here the algorithm for unlabeled dependency parsing.
+rootBookthatﬂight1244568757
+Figure 19.11 Initial rooted, directed graph for Book that ﬂight .
+Before describing the algorithm it’s useful to consider two intuitions about di-
+rected graphs and their spanning trees. The ﬁrst intuition begins with the fact that
+every vertex in a spanning tree has exactly one incoming edge. It follows from this
+that every connected component of a spanning tree (i.e., every set of vertices that
+are linked to each other by paths over edges) will also have one incoming edge.
+The second intuition is that the absolute values of the edge scores are not critical
+to determining its maximum spanning tree. Instead, it is the relative weights of the
+edges entering each vertex that matters. If we were to subtract a constant amount
+from each edge entering a given vertex it would have no impact on the choice of
+
+## Page 17
+
+19.3 • G RAPH -BASED DEPENDENCY PARSING 17
+the maximum spanning tree since every possible spanning tree would decrease by
+exactly the same amount.
+The ﬁrst step of the algorithm itself is quite straightforward. For each vertex
+in the graph, an incoming edge (representing a possible head assignment) with the
+highest score is chosen. If the resulting set of edges produces a spanning tree then
+we’re done. More formally, given the original fully-connected graph G= (V;E), a
+subgraph T= (V;F)is a spanning tree if it has no cycles and each vertex (other than
+the root) has exactly one edge entering it. If the greedy selection process produces
+such a tree then it is the best possible one.
+Unfortunately, this approach doesn’t always lead to a tree since the set of edges
+selected may contain cycles. Fortunately, in yet another case of multiple discovery,
+there is a straightforward way to eliminate cycles generated during the greedy se-
+lection phase. Chu and Liu (1965) and Edmonds (1967) independently developed
+an approach that begins with greedy selection and follows with an elegant recursive
+cleanup phase that eliminates cycles.
+The cleanup phase begins by adjusting all the weights in the graph by subtracting
+the score of the maximum edge entering each vertex from the score of all the edges
+entering that vertex. This is where the intuitions mentioned earlier come into play.
+We have scaled the values of the edges so that the weights of the edges in the cycle
+have no bearing on the weight of anyof the possible spanning trees. Subtracting the
+value of the edge with maximum weight from each edge entering a vertex results
+in a weight of zero for all of the edges selected during the greedy selection phase,
+including all of the edges involved in the cycle .
+Having adjusted the weights, the algorithm creates a new graph by selecting a
+cycle and collapsing it into a single new node. Edges that enter or leave the cycle
+are altered so that they now enter or leave the newly collapsed node. Edges that do
+not touch the cycle are included and edges within the cycle are dropped.
+Now, if we knew the maximum spanning tree of this new graph, we would have
+what we need to eliminate the cycle. The edge of the maximum spanning tree di-
+rected towards the vertex representing the collapsed cycle tells us which edge to
+delete in order to eliminate the cycle. How do we ﬁnd the maximum spanning tree
+of this new graph? We recursively apply the algorithm to the new graph. This will
+either result in a spanning tree or a graph with a cycle. The recursions can continue
+as long as cycles are encountered. When each recursion completes we expand the
+collapsed vertex, restoring all the vertices and edges from the cycle with the excep-
+tion of the single edge to be deleted .
+Putting all this together, the maximum spanning tree algorithm consists of greedy
+edge selection, re-scoring of edge costs and a recursive cleanup phase when needed.
+The full algorithm is shown in Fig. 19.12.
+Fig. 19.13 steps through the algorithm with our Book that ﬂight example. The
+ﬁrst row of the ﬁgure illustrates greedy edge selection with the edges chosen shown
+in blue (corresponding to the set Fin the algorithm). This results in a cycle between
+thatandﬂight . The scaled weights using the maximum value entering each node are
+shown in the graph to the right.
+Collapsing the cycle between that andﬂight to a single node (labelled tf) and
+recursing with the newly scaled costs is shown in the second row. The greedy selec-
+tion step in this recursion yields a spanning tree that links roottobook , as well as an
+edge that links book to the contracted node. Expanding the contracted node, we can
+see that this edge corresponds to the edge from book toﬂight in the original graph.
+This in turn tells us which edge to drop to eliminate the cycle.
+
+## Page 18
+
+18 CHAPTER 19 • D EPENDENCY PARSING
+function MAXSPANNING TREE(G=(V ,E) ,root,score )returns spanning tree
+F []
+T’ []
+score’ []
+for each v2Vdo
+bestInEdge argmaxe=(u;v)2Escore[e]
+F F[bestInEdge
+for each e=(u,v)2Edo
+score’[e] score[e] score[bestInEdge]
+ifT=(V ,F) is a spanning tree then return it
+else
+C a cycle in F
+G’ CONTRACT (G,C)
+T’ MAXSPANNING TREE(G’,root,score’ )
+T EXPAND (T’,C)
+return T
+function CONTRACT (G,C)returns contracted graph
+function EXPAND (T,C)returns expanded graph
+Figure 19.12 The Chu-Liu Edmonds algorithm for ﬁnding a maximum spanning tree in a
+weighted directed graph.
+On arbitrary directed graphs, this version of the CLE algorithm runs in O(mn)
+time, where mis the number of edges and nis the number of nodes. Since this par-
+ticular application of the algorithm begins by constructing a fully connected graph
+m=n2yielding a running time of O(n3). Gabow et al. (1986) present a more efﬁ-
+cient implementation with a running time of O(m+nlogn ).
+19.3.2 A feature-based algorithm for assigning scores
+Recall that given a sentence, S, and a candidate tree, T, edge-factored parsing models
+make the simpliﬁcation that the score for the tree is the sum of the scores of the edges
+that comprise the tree:
+score(S;T) =X
+e2Tscore(S;e)
+In a feature-based algorithm we compute the edge score as a weighted sum of fea-
+tures extracted from it:
+score(S;e) =NX
+i=1wifi(S;e)
+Or more succinctly.
+score(S;e) = wf
+Given this formulation, we need to identify relevant features and train the weights.
+The features (and feature combinations) used to train edge-factored models mir-
+ror those used in training transition-based parsers, such as
+
+## Page 19
+
+19.3 • G RAPH -BASED DEPENDENCY PARSING 19
+rootBooktf
+rootBookthatﬂight0-3-4
+-7-1-6-2rootBook12that7ﬂight8-4-30-2-6-1-700
+rootBook0tf-10-3-4
+-7-1-6-2rootBook12that7ﬂight81244568757
+Deleted from cycle
+Figure 19.13 Chu-Liu-Edmonds graph-based example for Book that ﬂight
+• Wordforms, lemmas, and parts of speech of the headword and its dependent.
+• Corresponding features from the contexts before, after and between the words.
+• Word embeddings.
+• The dependency relation itself.
+• The direction of the relation (to the right or left).
+• The distance from the head to the dependent.
+Given a set of features, our next problem is to learn a set of weights correspond-
+ing to each. Unlike many of the learning problems discussed in earlier chapters,
+here we are not training a model to associate training items with class labels, or
+parser actions. Instead, we seek to train a model that assigns higher scores to cor-
+rect trees than to incorrect ones. An effective framework for problems like this is to
+useinference-based learning combined with the perceptron learning rule. In thisinference-based
+learning
+framework, we parse a sentence (i.e, perform inference) from the training set using
+some initially random set of initial weights. If the resulting parse matches the cor-
+responding tree in the training data, we do nothing to the weights. Otherwise, we
+ﬁnd those features in the incorrect parse that are notpresent in the reference parse
+and we lower their weights by a small amount based on the learning rate. We do this
+incrementally for each sentence in our training data until the weights converge.
+
+## Page 20
+
+20 CHAPTER 19 • D EPENDENCY PARSING
+19.3.3 A neural algorithm for assigning scores
+State-of-the-art graph-based multilingual parsers are based on neural networks. In-
+stead of extracting hand-designed features to represent each edge between words wi
+andwj, these parsers run the sentence through an encoder, and then pass the encoded
+representation of the two words wiandwjthrough a network that estimates a score
+for the edge i!j.
+bookthatﬂightr1score(h1head, h3dep)Biaﬃneb
+ENCODERUh1 headFFNheadFFNheadFFNdepFFNdeph1 depFFNheadFFNdeph2 headh2 deph3 headh3 depWr2r3∑+
+Figure 19.14 Computing scores for a single edge (book !ﬂight) in the biafﬁne parser of
+Dozat and Manning (2017); Dozat et al. (2017). The parser uses distinct feedforward net-
+works to turn the encoder output for each word into a head and dependent representation for
+the word. The biafﬁne function turns the head embedding of the head and the dependent
+embedding of the dependent into a score for the dependency edge.
+Here we’ll sketch the biafﬁne algorithm of Dozat and Manning (2017) and Dozat
+et al. (2017) shown in Fig. 19.14, drawing on the work of Gr ¨unewald et al. (2021)
+who tested many versions of the algorithm via their STEPS system. The algorithm
+ﬁrst runs the sentence X=x1;:::;xnthrough an encoder to produce a contextual
+embedding representation for each token R=r1;:::;rn. The embedding for each
+token is now passed through two separate feedforward networks, one to produce a
+representation of this token as a head, and one to produce a representation of this
+token as a dependent:
+hhead
+i=FFNhead(ri) (19.13)
+hdep
+i=FFNdep(ri) (19.14)
+Now to assign a score to the directed edge i!j, (wiis the head and wjis the depen-
+dent), we feed the head representation of i,hhead
+i, and the dependent representation
+ofj,hdep
+j, into a biafﬁne scoring function:
+Score (i!j) = Biaff(hhead
+i;hdep
+j) (19.15)
+Biaff(x;y) = x|Uy+W(xy)+b (19.16)
+
+## Page 21
+
+19.4 • E VALUATION 21
+where U,W, and bare weights learned by the model. The idea of using a biafﬁne
+function is to allow the system to learn multiplicative interactions between the vec-
+torsxandy.
+If we pass Score (i!j)through a softmax, we end up with a probability distri-
+bution, for each token j, over potential heads i(all other tokens in the sentence):
+p(i!j) =softmax ([Score (k!j);8k6=j;1kn]) (19.17)
+This probability can then be passed to the maximum spanning tree algorithm of
+Section 19.3.1 to ﬁnd the best tree.
+This p(i!j)classiﬁer is trained by optimizing the cross-entropy loss.
+Note that the algorithm as we’ve described it is unlabeled. To make this into
+a labeled algorithm, the Dozat and Manning (2017) algorithm actually trains two
+classiﬁers. The ﬁrst classiﬁer, the edge-scorer , the one we described above, assigns
+a probability p(i!j)to each word wiandwj. Then the Maximum Spanning Tree
+algorithm is run to get a single best dependency parse tree for the second. We then
+apply a second classiﬁer, the label-scorer , whose job is to ﬁnd the maximum prob-
+ability label for each edge in this parse. This second classiﬁer has the same form
+as (19.15-19.17), but instead of being trained to predict with binary softmax the
+probability of an edge existing between two words, it is trained with a softmax over
+dependency labels to predict the dependency label between the words.
+19.4 Evaluation
+As with phrase structure-based parsing, the evaluation of dependency parsers pro-
+ceeds by measuring how well they work on a test set. An obvious metric would be
+exact match (EM)—how many sentences are parsed correctly. This metric is quite
+pessimistic, with most sentences being marked wrong. Such measures are not ﬁne-
+grained enough to guide the development process. Our metrics need to be sensitive
+enough to tell if actual improvements are being made.
+For these reasons, the most common method for evaluating dependency parsers
+are labeled and unlabeled attachment accuracy. Labeled attachment refers to the
+proper assignment of a word to its head along with the correct dependency relation.
+Unlabeled attachment simply looks at the correctness of the assigned head, ignor-
+ing the dependency relation. Given a system output and a corresponding reference
+parse, accuracy is simply the percentage of words in an input that are assigned the
+correct head with the correct relation. These metrics are usually referred to as the
+labeled attachment score (LAS) and unlabeled attachment score (UAS). Finally, we
+can make use of a label accuracy score (LS), the percentage of tokens with correct
+labels, ignoring where the relations are coming from.
+As an example, consider the reference parse and system parse for the following
+example shown in Fig. 19.15.
+(19.18) Book me the ﬂight through Houston.
+The system correctly ﬁnds 4 of the 6 dependency relations present in the reference
+parse and receives an LAS of 2/3. However, one of the 2 incorrect relations found
+by the system holds between book andﬂight , which are in a head-dependent relation
+in the reference parse; the system therefore achieves a UAS of 5/6.
+Beyond attachment scores, we may also be interested in how well a system is
+performing on a particular kind of dependency relation, for example NSUBJ , across
+
+## Page 22
+
+22 CHAPTER 19 • D EPENDENCY PARSING
+Book methe ﬂight through Houston
+(a) Referenceiobjobj
+detnmod
+caseroot
+Book methe ﬂight through Houston
+(b) Systemxcomp
+nsubj
+detnmod
+caseroot
+Figure 19.15 Reference and system parses for Book me the ﬂight through Houston , resulting in an LAS of
+2/3 and an UAS of 5/6.
+a development corpus. Here we can make use of the notions of precision and recall
+introduced in Chapter 17, measuring the percentage of relations labeled NSUBJ by
+the system that were correct (precision), and the percentage of the NSUBJ relations
+present in the development set that were in fact discovered by the system (recall).
+We can employ a confusion matrix to keep track of how often each dependency type
+was confused for another.
+19.5 Summary
+This chapter has introduced the concept of dependency grammars and dependency
+parsing. Here’s a summary of the main points that we covered:
+• In dependency-based approaches to syntax, the structure of a sentence is de-
+scribed in terms of a set of binary relations that hold between the words in a
+sentence. Larger notions of constituency are not directly encoded in depen-
+dency analyses.
+• The relations in a dependency structure capture the head-dependent relation-
+ship among the words in a sentence.
+• Dependency-based analysis provides information directly useful in further
+language processing tasks including information extraction, semantic parsing
+and question answering.
+• Transition-based parsing systems employ a greedy stack-based algorithm to
+create dependency structures.
+• Graph-based methods for creating dependency structures are based on the use
+of maximum spanning tree methods from graph theory.
+• Both transition-based and graph-based approaches are developed using super-
+vised machine learning techniques.
+• Treebanks provide the data needed to train these systems. Dependency tree-
+banks can be created directly by human annotators or via automatic transfor-
+mation from phrase-structure treebanks.
+• Evaluation of dependency parsers is based on labeled and unlabeled accuracy
+scores as measured against withheld development and test corpora.
+
+## Page 23
+
+BIBLIOGRAPHICAL AND HISTORICAL NOTES 23
+Bibliographical and Historical Notes
+The dependency-based approach to grammar is much older than the relatively recent
+phrase-structure or constituency grammars, which date only to the 20th century. De-
+pendency grammar dates back to the Indian grammarian P ¯an.ini sometime between
+the 7th and 4th centuries BCE, as well as the ancient Greek linguistic traditions.
+Contemporary theories of dependency grammar all draw heavily on the 20th cen-
+tury work of Tesni `ere (1959).
+Automatic parsing using dependency grammars was ﬁrst introduced into compu-
+tational linguistics by early work on machine translation at the RAND Corporation
+led by David Hays. This work on dependency parsing closely paralleled work on
+constituent parsing and made explicit use of grammars to guide the parsing process.
+After this early period, computational work on dependency parsing remained inter-
+mittent over the following decades. Notable implementations of dependency parsers
+for English during this period include Link Grammar (Sleator and Temperley, 1993),
+Constraint Grammar (Karlsson et al., 1995), and MINIPAR (Lin, 2003).
+Dependency parsing saw a major resurgence in the late 1990’s with the appear-
+ance of large dependency-based treebanks and the associated advent of data driven
+approaches described in this chapter. Eisner (1996) developed an efﬁcient dynamic
+programming approach to dependency parsing based on bilexical grammars derived
+from the Penn Treebank. Covington (2001) introduced the deterministic word by
+word approach underlying current transition-based approaches. Yamada and Mat-
+sumoto (2003) and Kudo and Matsumoto (2002) introduced both the shift-reduce
+paradigm and the use of supervised machine learning in the form of support vector
+machines to dependency parsing.
+Transition-based parsing is based on the shift-reduce parsing algorithm orig-
+inally developed for analyzing programming languages (Aho and Ullman, 1972).
+Shift-reduce parsing also makes use of a context-free grammar. Input tokens are
+successively shifted onto the stack and the top two elements of the stack are matched
+against the right-hand side of the rules in the grammar; when a match is found the
+matched elements are replaced on the stack (reduced) by the non-terminal from the
+left-hand side of the rule being matched. In transition-based dependency parsing
+we skip the grammar, and alter the reduce operation to add a dependency relation
+between a word and its head.
+Nivre (2003) deﬁned the modern, deterministic, transition-based approach to
+dependency parsing. Subsequent work by Nivre and his colleagues formalized and
+analyzed the performance of numerous transition systems, training methods, and
+methods for dealing with non-projective language (Nivre and Scholz 2004, Nivre
+2006, Nivre and Nilsson 2005, Nivre et al. 2007b, Nivre 2007). The neural ap-
+proach was pioneered by Chen and Manning (2014) and extended by Kiperwasser
+and Goldberg (2016); Kulmizev et al. (2019).
+The graph-based maximum spanning tree approach to dependency parsing was
+introduced by McDonald et al. 2005a, McDonald et al. 2005b. The neural classiﬁer
+was introduced by (Kiperwasser and Goldberg, 2016).
+The long-running Prague Dependency Treebank project (Haji ˇc, 1998) is the most
+signiﬁcant effort to directly annotate a corpus with multiple layers of morphological,
+syntactic and semantic information. PDT 3.0 contains over 1.5 M tokens (Bej ˇcek
+et al., 2013).
+Universal Dependencies (UD) (de Marneffe et al., 2021) is an open community
+
+## Page 24
+
+24 CHAPTER 19 • D EPENDENCY PARSING
+project to create a framework for dependency treebank annotation, with nearly 200
+treebanks in over 100 languages. The UD annotation scheme evolved out of several
+distinct efforts including Stanford dependencies (de Marneffe et al. 2006, de Marn-
+effe and Manning 2008, de Marneffe et al. 2014), Google’s universal part-of-speech
+tags (Petrov et al., 2012), and the Interset interlingua for morphosyntactic tagsets
+(Zeman, 2008).
+The Conference on Natural Language Learning (CoNLL) has conducted an in-
+ﬂuential series of shared tasks related to dependency parsing over the years (Buch-
+holz and Marsi 2006, Nivre et al. 2007a, Surdeanu et al. 2008, Haji ˇc et al. 2009).
+More recent evaluations have focused on parser robustness with respect to morpho-
+logically rich languages (Seddah et al., 2013), and non-canonical language forms
+such as social media, texts, and spoken language (Petrov and McDonald, 2012).
+Choi et al. (2015) presents a performance analysis of 10 dependency parsers across
+a range of metrics, as well as DEPEND ABLE, a robust parser evaluation tool.
+Exercises
+
+## Page 25
+
+Exercises 25
+Aho, A. V . and J. D. Ullman. 1972. The Theory of Parsing,
+Translation, and Compiling , volume 1. Prentice Hall.
+Bejˇcek, E., E. Haji ˇcov´a, J. Haji ˇc, P. J ´ınov´a, V . Kettnerov ´a,
+V . Kol ´aˇrov´a, M. Mikulov ´a, J. M ´ırovsk ´y, A. Nedoluzhko,
+J. Panevov ´a, L. Pol ´akov ´a, M. ˇSevˇc´ıkov´a, J. ˇStˇep´anek,
+and ˇS. Zik ´anov ´a. 2013. Prague dependency treebank
+3.0. Technical report, Institute of Formal and Ap-
+plied Linguistics, Charles University in Prague. LIN-
+DAT/CLARIN digital library at Institute of Formal and
+Applied Linguistics, Charles University in Prague.
+Bhat, I., R. A. Bhat, M. Shrivastava, and D. Sharma. 2017.
+Joining hands: Exploiting monolingual treebanks for
+parsing of code-mixing data. EACL .
+Buchholz, S. and E. Marsi. 2006. Conll-x shared task on
+multilingual dependency parsing. CoNLL .
+Chen, D. and C. Manning. 2014. A fast and accurate depen-
+dency parser using neural networks. EMNLP .
+Choi, J. D. and M. Palmer. 2011a. Getting the most out of
+transition-based dependency parsing. ACL.
+Choi, J. D. and M. Palmer. 2011b. Transition-based semantic
+role labeling using predicate argument clustering. Pro-
+ceedings of the ACL 2011 Workshop on Relational Mod-
+els of Semantics .
+Choi, J. D., J. Tetreault, and A. Stent. 2015. It depends:
+Dependency parser comparison using a web-based evalu-
+ation tool. ACL.
+Chu, Y .-J. and T.-H. Liu. 1965. On the shortest arborescence
+of a directed graph. Science Sinica , 14:1396–1400.
+Covington, M. 2001. A fundamental algorithm for depen-
+dency parsing. Proceedings of the 39th Annual ACM
+Southeast Conference .
+Dozat, T. and C. D. Manning. 2017. Deep biafﬁne attention
+for neural dependency parsing. ICLR .
+Dozat, T. and C. D. Manning. 2018. Simpler but more accu-
+rate semantic dependency parsing. ACL.
+Dozat, T., P. Qi, and C. D. Manning. 2017. Stanford’s
+graph-based neural dependency parser at the CoNLL
+2017 shared task. Proceedings of the CoNLL 2017 Shared
+Task: Multilingual Parsing from Raw Text to Universal
+Dependencies .
+Edmonds, J. 1967. Optimum branchings. Journal of Re-
+search of the National Bureau of Standards B , 71(4):233–
+240.
+Eisner, J. 1996. Three new probabilistic models for depen-
+dency parsing: An exploration. COLING .
+Gabow, H. N., Z. Galil, T. Spencer, and R. E. Tarjan.
+1986. Efﬁcient algorithms for ﬁnding minimum spanning
+trees in undirected and directed graphs. Combinatorica ,
+6(2):109–122.
+Gr¨unewald, S., A. Friedrich, and J. Kuhn. 2021. Applying
+Occam’s razor to transformer-based dependency parsing:
+What works, what doesn’t, and what is really necessary.
+IWPT .
+Hajiˇc, J. 1998. Building a Syntactically Annotated Corpus:
+The Prague Dependency Treebank , 106–132. Karolinum.Hajiˇc, J., M. Ciaramita, R. Johansson, D. Kawahara, M. A.
+Mart ´ı, L. M `arquez, A. Meyers, J. Nivre, S. Pad ´o,
+J.ˇStˇep´anek, P. Stran ˇa´k, M. Surdeanu, N. Xue, and
+Y . Zhang. 2009. The conll-2009 shared task: Syntac-
+tic and semantic dependencies in multiple languages.
+CoNLL .
+Karlsson, F., A. V outilainen, J. Heikkil ¨a, and A. Anttila, eds.
+1995. Constraint Grammar: A Language-Independent
+System for Parsing Unrestricted Text . Mouton de Gruyter.
+Kiperwasser, E. and Y . Goldberg. 2016. Simple and accu-
+rate dependency parsing using bidirectional LSTM fea-
+ture representations. TACL , 4:313–327.
+Kudo, T. and Y . Matsumoto. 2002. Japanese dependency
+analysis using cascaded chunking. CoNLL .
+Kulmizev, A., M. de Lhoneux, J. Gontrum, E. Fano, and
+J. Nivre. 2019. Deep contextualized word embeddings
+in transition-based and graph-based dependency parsing
+- a tale of two parsers revisited. EMNLP .
+Lin, D. 2003. Dependency-based evaluation of minipar.
+Workshop on the Evaluation of Parsing Systems .
+de Marneffe, M.-C., T. Dozat, N. Silveira, K. Haverinen,
+F. Ginter, J. Nivre, and C. D. Manning. 2014. Univer-
+sal Stanford dependencies: A cross-linguistic typology.
+LREC .
+de Marneffe, M.-C., B. MacCartney, and C. D. Manning.
+2006. Generating typed dependency parses from phrase
+structure parses. LREC .
+de Marneffe, M.-C. and C. D. Manning. 2008. The Stanford
+typed dependencies representation. COLING Workshop
+on Cross-Framework and Cross-Domain Parser Evalua-
+tion.
+de Marneffe, M.-C., C. D. Manning, J. Nivre, and D. Zeman.
+2021. Universal Dependencies. Computational Linguis-
+tics, 47(2):255–308.
+McDonald, R., K. Crammer, and F. C. N. Pereira. 2005a. On-
+line large-margin training of dependency parsers. ACL.
+McDonald, R. and J. Nivre. 2011. Analyzing and inte-
+grating dependency parsers. Computational Linguistics ,
+37(1):197–230.
+McDonald, R., F. C. N. Pereira, K. Ribarov, and J. Haji ˇc.
+2005b. Non-projective dependency parsing using span-
+ning tree algorithms. HLT-EMNLP .
+Nivre, J. 2007. Incremental non-projective dependency pars-
+ing. NAACL-HLT .
+Nivre, J. 2003. An efﬁcient algorithm for projective depen-
+dency parsing. Proceedings of the 8th International Work-
+shop on Parsing Technologies (IWPT) .
+Nivre, J. 2006. Inductive Dependency Parsing . Springer.
+Nivre, J. 2009. Non-projective dependency parsing in ex-
+pected linear time. ACL IJCNLP .
+Nivre, J., J. Hall, S. K ¨ubler, R. McDonald, J. Nilsson,
+S. Riedel, and D. Yuret. 2007a. The conll 2007 shared
+task on dependency parsing. EMNLP/CoNLL .
+Nivre, J., J. Hall, J. Nilsson, A. Chanev, G. Eryigit,
+S. K ¨ubler, S. Marinov, and E. Marsi. 2007b. Malt-
+parser: A language-independent system for data-driven
+dependency parsing. Natural Language Engineering ,
+13(02):95–135.
+
+## Page 26
+
+26 Chapter 19 • Dependency Parsing
+Nivre, J. and J. Nilsson. 2005. Pseudo-projective dependency
+parsing. ACL.
+Nivre, J. and M. Scholz. 2004. Deterministic dependency
+parsing of english text. COLING .
+Petrov, S., D. Das, and R. McDonald. 2012. A universal
+part-of-speech tagset. LREC .
+Petrov, S. and R. McDonald. 2012. Overview of the 2012
+shared task on parsing the web. Notes of the First Work-
+shop on Syntactic Analysis of Non-Canonical Language
+(SANCL) , volume 59.
+Seddah, D., R. Tsarfaty, S. K ¨ubler, M. Candito, J. D. Choi,
+R. Farkas, J. Foster, I. Goenaga, K. Gojenola, Y . Gold-
+berg, S. Green, N. Habash, M. Kuhlmann, W. Maier,
+J. Nivre, A. Przepi ´orkowski, R. Roth, W. Seeker, Y . Vers-
+ley, V . Vincze, M. Woli ´nski, A. Wr ´oblewska, and E. Ville-
+monte de la Cl ´ergerie. 2013. Overview of the SPMRL
+2013 shared task: cross-framework evaluation of parsing
+morphologically rich languages. 4th Workshop on Statis-
+tical Parsing of Morphologically-Rich Languages .
+Sleator, D. and D. Temperley. 1993. Parsing English with a
+link grammar. IWPT-93 .
+Surdeanu, M., R. Johansson, A. Meyers, L. M `arquez, and
+J. Nivre. 2008. The CoNLL 2008 shared task on joint
+parsing of syntactic and semantic dependencies. CoNLL .
+Tesni `ere, L. 1959. ´El´ements de Syntaxe Structurale . Librairie
+C. Klincksieck, Paris.
+Yamada, H. and Y . Matsumoto. 2003. Statistical dependency
+analysis with support vector machines. IWPT-03 .
+Zeman, D. 2008. Reusable tagset conversion using tagset
+drivers. LREC .
+

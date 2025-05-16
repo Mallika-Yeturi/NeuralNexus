@@ -1,0 +1,1116 @@
+# G
+
+## Page 1
+
+Speech and Language Processing. Daniel Jurafsky & James H. Martin. Copyright ©2024. All
+rights reserved. Draft of January 12, 2025.
+CHAPTER
+GWord Senses and WordNet
+Lady Bracknell . Are your parents living?
+Jack . I have lost both my parents.
+Lady Bracknell. To lose one parent, Mr. Worthing, may be regarded as a
+misfortune; to lose both looks like carelessness.
+Oscar Wilde, The Importance of Being Earnest
+Words are ambiguous : the same word can be used to mean different things. In ambiguous
+Chapter 6 we saw that the word “mouse” has (at least) two meanings: (1) a small
+rodent, or (2) a hand-operated device to control a cursor. The word “bank” can
+mean: (1) a ﬁnancial institution or (2) a sloping mound. In the quote above from
+his play The Importance of Being Earnest , Oscar Wilde plays with two meanings of
+“lose” (to misplace an object, and to suffer the death of a close person).
+We say that the words ‘mouse’ or ‘bank’ are polysemous (from Greek ‘having
+many senses’, poly- ‘many’ + sema , ‘sign, mark’).1Asense (orword sense ) is word sense
+a discrete representation of one aspect of the meaning of a word. In this chapter
+we discuss word senses in more detail and introduce WordNet , a large online the- WordNet
+saurus —a database that represents word senses—with versions in many languages.
+WordNet also represents relations between senses. For example, there is an IS-A
+relation between dogandmammal (a dog is a kind of mammal) and a part-whole
+relation between engine andcar(an engine is a part of a car).
+Knowing the relation between two senses can play an important role in tasks
+involving meaning. Consider the antonymy relation. Two words are antonyms if
+they have opposite meanings, like long andshort , orupanddown . Distinguishing
+these is quite important; if a user asks a dialogue agent to turn up the music, it
+would be unfortunate to instead turn it down. But in fact in embedding models like
+word2vec, antonyms are easily confused with each other, because often one of the
+closest words in embedding space to a word (e.g., up) is its antonym (e.g., down ).
+Thesauruses that represent this relationship can help!
+We also introduce word sense disambiguation (WSD ), the task of determiningword sense
+disambiguation
+which sense of a word is being used in a particular context. We’ll give supervised
+and unsupervised algorithms for deciding which sense was intended in a particular
+context. This task has a very long history in computational linguistics and many ap-
+plications. In question answering, we can be more helpful to a user who asks about
+“bat care” if we know which sense of bat is relevant. (Is the user a vampire? or
+just wants to play baseball.) And the different senses of a word often have differ-
+ent translations; in Spanish the animal bat is a murci ´elago while the baseball bat is
+abate, and indeed word sense algorithms may help improve MT (Pu et al., 2018).
+Finally, WSD has long been used as a tool for evaluating language processing mod-
+els, and understanding how models represent different word senses is an important
+1The word polysemy itself is ambiguous; you may see it used in a different way, to refer only to cases
+where a word’s senses are related in some structured way, reserving the word homonymy to mean sense
+ambiguities with no relation between the senses (Haber and Poesio, 2020). Here we will use ‘polysemy’
+to mean any kind of sense ambiguity, and ‘structured polysemy’ for polysemy with sense relations.
+
+## Page 2
+
+2APPENDIX G • W ORD SENSES AND WORDNET
+analytic direction.
+G.1 Word Senses
+Asense (orword sense ) is a discrete representation of one aspect of the meaning of word sense
+a word. Loosely following lexicographic tradition, we represent each sense with a
+superscript: bank1andbank2,mouse1andmouse2. In context, it’s easy to see the
+different meanings:
+mouse1: .... a mouse controlling a computer system in 1968.
+mouse2: .... a quiet animal like a mouse
+bank1: ...a bank can hold the investments in a custodial account ...
+bank2: ...as agriculture burgeons on the east bank , the river ...
+G.1.1 Deﬁning Word Senses
+How can we deﬁne the meaning of a word sense? We introduced in Chapter 6 the
+standard computational approach of representing a word as an embedding , a point
+in semantic space. The intuition of embedding models like word2vec or GloVe is
+that the meaning of a word can be deﬁned by its co-occurrences, the counts of words
+that often occur nearby. But that doesn’t tell us how to deﬁne the meaning of a word
+sense . As we saw in Chapter 11, contextual embeddings like BERT go further by
+offering an embedding that represents the meaning of a word in its textual context,
+and we’ll see that contextual embeddings lie at the heart of modern algorithms for
+word sense disambiguation.
+But ﬁrst, we need to consider the alternative ways that dictionaries and the-
+sauruses offer for deﬁning senses. One is based on the fact that dictionaries or the-
+sauruses give textual deﬁnitions for each sense called glosses . Here are the glosses gloss
+for two senses of bank :
+1. financial institution that accepts deposits and channels
+the money into lending activities
+2. sloping land (especially the slope beside a body of water)
+Glosses are not a formal meaning representation; they are just written for people.
+Consider the following fragments from the deﬁnitions of right ,left,red, and blood
+from the American Heritage Dictionary (Morris, 1985).
+right adj. located nearer the right hand esp. being on the right when
+facing the same direction as the observer.
+left adj.located nearer to this side of the body than the right.
+red n.the color of blood or a ruby.
+blood n.the red liquid that circulates in the heart, arteries and veins of
+animals.
+Note the circularity in these deﬁnitions. The deﬁnition of right makes two direct
+references to itself, and the entry for leftcontains an implicit self-reference in the
+phrase this side of the body , which presumably means the leftside. The entries for
+redandblood reference each other in their deﬁnitions. For humans, such entries are
+useful since the user of the dictionary has sufﬁcient grasp of these other terms.
+
+## Page 3
+
+G.1 • W ORD SENSES 3
+Yet despite their circularity and lack of formal representation, glosses can still
+be useful for computational modeling of senses. This is because a gloss is just a sen-
+tence, and from sentences we can compute sentence embeddings that tell us some-
+thing about the meaning of the sense. Dictionaries often give example sentences
+along with glosses, and these can again be used to help build a sense representation.
+The second way that thesauruses offer for deﬁning a sense is—like the dictionary
+deﬁnitions—deﬁning a sense through its relationship with other senses. For exam-
+ple, the above deﬁnitions make it clear that right andleftare similar kinds of lemmas
+that stand in some kind of alternation, or opposition, to one another. Similarly, we
+can glean that redis a color and that blood is aliquid .Sense relations of this sort
+(IS-A , orantonymy ) are explicitly listed in on-line databases like WordNet . Given
+a sufﬁciently large database of such relations, many applications are quite capable
+of performing sophisticated semantic tasks about word senses (even if they do not
+really know their right from their left).
+G.1.2 How many senses do words have?
+Dictionaries and thesauruses give discrete lists of senses. By contrast, embeddings
+(whether static or contextual) offer a continuous high-dimensional model of meaning
+that doesn’t divide up into discrete senses.
+Therefore creating a thesaurus depends on criteria for deciding when the differ-
+ing uses of a word should be represented with discrete senses. We might consider
+two senses discrete if they have independent truth conditions, different syntactic be-
+havior, and independent sense relations, or if they exhibit antagonistic meanings.
+Consider the following uses of the verb serve from the WSJ corpus:
+(G.1) They rarely serve red meat, preferring to prepare seafood.
+(G.2) He served as U.S. ambassador to Norway in 1976 and 1977.
+(G.3) He might have served his time, come out and led an upstanding life.
+Theserve ofserving red meat and that of serving time clearly have different truth
+conditions and presuppositions; the serve ofserve as ambassador has the distinct
+subcategorization structure serve as NP . These heuristics suggest that these are prob-
+ably three distinct senses of serve . One practical technique for determining if two
+senses are distinct is to conjoin two uses of a word in a single sentence; this kind
+of conjunction of antagonistic readings is called zeugma . Consider the following zeugma
+examples:
+(G.4) Which of those ﬂights serve breakfast?
+(G.5) Does Air France serve Philadelphia?
+(G.6) ?Does Air France serve breakfast and Philadelphia?
+We use (?) to mark those examples that are semantically ill-formed. The oddness of
+the invented third example (a case of zeugma) indicates there is no sensible way to
+make a single sense of serve work for both breakfast and Philadelphia. We can use
+this as evidence that serve has two different senses in this case.
+Dictionaries tend to use many ﬁne-grained senses so as to capture subtle meaning
+differences, a reasonable approach given that the traditional role of dictionaries is
+aiding word learners. For computational purposes, we often don’t need these ﬁne
+distinctions, so we often group or cluster the senses; we have already done this for
+some of the examples in this chapter. Indeed, clustering examples into senses, or
+senses into broader-grained categories, is an important computational task that we’ll
+discuss in Section G.7.
+
+## Page 4
+
+4APPENDIX G • W ORD SENSES AND WORDNET
+G.2 Relations Between Senses
+This section explores the relations between word senses, especially those that have
+received signiﬁcant computational investigation like synonymy ,antonymy , and hy-
+pernymy .
+Synonymy
+We introduced in Chapter 6 the idea that when two senses of two different words
+(lemmas) are identical, or nearly identical, we say the two senses are synonyms . synonym
+Synonyms include such pairs as
+couch/sofa vomit/throw up ﬁlbert/hazelnut car/automobile
+And we mentioned that in practice, the word synonym is commonly used to
+describe a relationship of approximate or rough synonymy. But furthermore, syn-
+onymy is actually a relationship between senses rather than words. Considering the
+words bigandlarge . These may seem to be synonyms in the following sentences,
+since we could swap bigandlarge in either sentence and retain the same meaning:
+(G.7) How big is that plane?
+(G.8) Would I be ﬂying on a large or small plane?
+But note the following sentence in which we cannot substitute large forbig:
+(G.9) Miss Nelson, for instance, became a kind of big sister to Benjamin.
+(G.10) ?Miss Nelson, for instance, became a kind of large sister to Benjamin.
+This is because the word bighas a sense that means being older or grown up, while
+large lacks this sense. Thus, we say that some senses of bigandlarge are (nearly)
+synonymous while other ones are not.
+Antonymy
+Whereas synonyms are words with identical or similar meanings, antonyms are antonym
+words with an opposite meaning, like:
+long/short big/little fast/slow cold/hot dark/light
+rise/fall up/down in/out
+Two senses can be antonyms if they deﬁne a binary opposition or are at opposite
+ends of some scale. This is the case for long/short ,fast/slow , orbig/little, which are
+at opposite ends of the length orsizescale. Another group of antonyms, reversives , reversives
+describe change or movement in opposite directions, such as rise/fall orup/down .
+Antonyms thus differ completely with respect to one aspect of their meaning—
+their position on a scale or their direction—but are otherwise very similar, sharing
+almost all other aspects of meaning. Thus, automatically distinguishing synonyms
+from antonyms can be difﬁcult.
+Taxonomic Relations
+Another way word senses can be related is taxonomically. A word (or sense) is a
+hyponym of another word or sense if the ﬁrst is more speciﬁc, denoting a subclass hyponym
+of the other. For example, caris a hyponym of vehicle ,dogis a hyponym of animal ,
+andmango is a hyponym of fruit. Conversely, we say that vehicle is ahypernym of hypernym
+car, and animal is a hypernym of dog. It is unfortunate that the two words (hypernym
+
+## Page 5
+
+G.2 • R ELATIONS BETWEEN SENSES 5
+and hyponym) are very similar and hence easily confused; for this reason, the word
+superordinate is often used instead of hypernym . superordinate
+Superordinate vehicle fruit furniture mammal
+Subordinate car mango chair dog
+We can deﬁne hypernymy more formally by saying that the class denoted by
+the superordinate extensionally includes the class denoted by the hyponym. Thus,
+the class of animals includes as members all dogs, and the class of moving actions
+includes all walking actions. Hypernymy can also be deﬁned in terms of entail-
+ment . Under this deﬁnition, a sense Ais a hyponym of a sense Bif everything
+that is Ais also B, and hence being an Aentails being a B, or8x A(x))B(x). Hy-
+ponymy/hypernymy is usually a transitive relation; if A is a hyponym of B and B is a
+hyponym of C, then A is a hyponym of C. Another name for the hypernym/hyponym
+structure is the IS-A hierarchy, in which we say A IS-A B, or B subsumes A . IS-A
+Hypernymy is useful for tasks like textual entailment or question answering;
+knowing that leukemia is a type of cancer , for example, would certainly be useful in
+answering questions about leukemia.
+Meronymy
+Another common relation is meronymy , the part-whole relation. A legis part of a part-whole
+chair ; awheel is part of a car. We say that wheel is ameronym ofcar, and caris a
+holonym ofwheel .
+Structured Polysemy
+The senses of a word can also be related semantically, in which case we call the
+relationship between them structured polysemy . Consider this sense bank :structured
+polysemy
+(G.11) The bank is on the corner of Nassau and Witherspoon.
+This sense, perhaps bank4, means something like “the building belonging to
+a ﬁnancial institution”. These two kinds of senses (an organization and the build-
+ing associated with an organization ) occur together for many other words as well
+(school ,university ,hospital , etc.). Thus, there is a systematic relationship between
+senses that we might represent as
+BUILDING$ORGANIZATION
+This particular subtype of polysemy relation is called metonymy . Metonymy is metonymy
+the use of one aspect of a concept or entity to refer to other aspects of the entity or
+to the entity itself. We are performing metonymy when we use the phrase the White
+House to refer to the administration whose ofﬁce is in the White House. Other
+common examples of metonymy include the relation between the following pairings
+of senses:
+AUTHOR $WORKS OF AUTHOR
+(Jane Austen wrote Emma ) (I really love Jane Austen )
+FRUITTREE $FRUIT
+(Plums have beautiful blossoms ) (I ate a preserved plum yesterday )
+
+## Page 6
+
+6APPENDIX G • W ORD SENSES AND WORDNET
+G.3 WordNet: A Database of Lexical Relations
+The most commonly used resource for sense relations in English and many other
+languages is the WordNet lexical database (Fellbaum, 1998). English WordNet WordNet
+consists of three separate databases, one each for nouns and verbs and a third for
+adjectives and adverbs; closed class words are not included. Each database contains
+a set of lemmas, each one annotated with a set of senses. The WordNet 3.0 release
+has 117,798 nouns, 11,529 verbs, 22,479 adjectives, and 4,481 adverbs. The aver-
+age noun has 1.23 senses, and the average verb has 2.16 senses. WordNet can be
+accessed on the Web or downloaded locally. Figure G.1 shows the lemma entry for
+the noun bass.
+The noun “bass” has 8 senses in WordNet.
+1. bass1- (the lowest part of the musical range)
+2. bass2, bass part1- (the lowest part in polyphonic music)
+3. bass3, basso1- (an adult male singer with the lowest voice)
+4. sea bass1, bass4- (the lean ﬂesh of a saltwater ﬁsh of the family Serranidae)
+5. freshwater bass1, bass5- (any of various North American freshwater ﬁsh with
+lean ﬂesh (especially of the genus Micropterus))
+6. bass6, bass voice1, basso2- (the lowest adult male singing voice)
+7. bass7- (the member with the lowest range of a family of musical instruments)
+8. bass8- (nontechnical name for any of numerous edible marine and
+freshwater spiny-ﬁnned ﬁshes)
+Figure G.1 A portion of the WordNet 3.0 entry for the noun bass.
+Note that there are eight senses, each of which has a gloss (a dictionary-style gloss
+deﬁnition), a list of synonyms for the sense, and sometimes also usage examples.
+WordNet doesn’t represent pronunciation, so doesn’t distinguish the pronunciation
+[b ae s] in bass4,bass5, and bass8from the other senses pronounced [b ey s].
+The set of near-synonyms for a WordNet sense is called a synset (forsynonym synset
+set); synsets are an important primitive in WordNet. The entry for bass includes
+synsets likefbass1, deep6g, orfbass6, bass voice1, basso2g. We can think of a
+synset as representing a concept of the type we discussed in Appendix F. Thus,
+instead of representing concepts in logical terms, WordNet represents them as lists
+of the word senses that can be used to express the concept. Here’s another synset
+example:
+fchump1, fool2, gull1, mark9, patsy1, fall guy1,
+sucker1, soft touch1, mug2g
+The gloss of this synset describes it as:
+Gloss : a person who is gullible and easy to take advantage of.
+Glosses are properties of a synset, so that each sense included in the synset has the
+same gloss and can express this concept. Because they share glosses, synsets like
+this one are the fundamental unit associated with WordNet entries, and hence it is
+synsets, not wordforms, lemmas, or individual senses, that participate in most of the
+lexical sense relations in WordNet.
+WordNet also labels each synset with a lexicographic category drawn from a
+semantic ﬁeld for example the 26 categories for nouns shown in Fig. G.2, as well
+as 15 for verbs (plus 2 for adjectives and 1 for adverbs). These categories are often
+
+## Page 7
+
+G.3 • W ORDNET: A D ATABASE OF LEXICAL RELATIONS 7
+called supersenses , because they act as coarse semantic categories or groupings of supersense
+senses which can be useful when word senses are too ﬁne-grained (Ciaramita and
+Johnson 2003, Ciaramita and Altun 2006). Supersenses have also been deﬁned for
+adjectives (Tsvetkov et al., 2014) and prepositions (Schneider et al., 2018).
+Category Example Category Example Category Example
+ACT service GROUP place PLANT tree
+ANIMAL dog LOCATION area POSSESSION price
+ARTIFACT car MOTIVE reason PROCESS process
+ATTRIBUTE quality NATURAL EVENT experience QUANTITY amount
+BODY hair NATURAL OBJECT ﬂower RELATION portion
+COGNITION way OTHER stuff SHAPE square
+COMMUNICATION review PERSON people STATE pain
+FEELING discomfort PHENOMENON result SUBSTANCE oil
+FOOD food TIME day
+Figure G.2 Supersenses: 26 lexicographic categories for nouns in WordNet.
+G.3.1 Sense Relations in WordNet
+WordNet represents all the kinds of sense relations discussed in the previous section,
+as illustrated in Fig. G.3 and Fig. G.4.
+Relation Also Called Deﬁnition Example
+Hypernym Superordinate From concepts to superordinates breakfast1!meal1
+Hyponym Subordinate From concepts to subtypes meal1!lunch1
+Instance Hypernym Instance From instances to their concepts Austen1!author1
+Instance Hyponym Has-Instance From concepts to their instances composer1!Bach1
+Part Meronym Has-Part From wholes to parts table2!leg3
+Part Holonym Part-Of From parts to wholes course7!meal1
+Antonym Semantic opposition between lemmas leader1() follower1
+Derivation Lemmas w/same morphological root destruction1() destroy1
+Figure G.3 Some of the noun relations in WordNet.
+Relation Deﬁnition Example
+Hypernym From events to superordinate events ﬂy9!travel5
+Troponym From events to subordinate event walk1!stroll1
+Entails From verbs (events) to the verbs (events) they entail snore1!sleep1
+Antonym Semantic opposition between lemmas increase1() decrease1
+Figure G.4 Some verb relations in WordNet.
+For example WordNet represents hyponymy (page 4) by relating each synset to
+its immediately more general and more speciﬁc synsets through direct hypernym
+and hyponym relations. These relations can be followed to produce longer chains of
+more general or more speciﬁc synsets. Figure G.5 shows hypernym chains for bass3
+andbass7; more general synsets are shown on successively indented lines.
+WordNet has two kinds of taxonomic entities: classes and instances. An instance
+is an individual, a proper noun that is a unique entity. San Francisco is an instance
+ofcity, for example. But cityis a class, a hyponym of municipality and eventually
+oflocation . Fig. G.6 shows a subgraph of WordNet demonstrating many of the
+relations.
+
+## Page 8
+
+8APPENDIX G • W ORD SENSES AND WORDNET
+bass3, basso (an adult male singer with the lowest voice)
+=> singer, vocalist, vocalizer, vocaliser
+=> musician, instrumentalist, player
+=> performer, performing artist
+=> entertainer
+=> person, individual, someone...
+=> organism, being
+=> living thing, animate thing,
+=> whole, unit
+=> object, physical object
+=> physical entity
+=> entity
+bass7(member with the lowest range of a family of instruments)
+=> musical instrument, instrument
+=> device
+=> instrumentality, instrumentation
+=> artifact, artefact
+=> whole, unit
+=> object, physical object
+=> physical entity
+=> entity
+Figure G.5 Hyponymy chains for two separate senses of the lemma bass. Note that the
+chains are completely distinct, only converging at the very abstract level whole, unit .
+Figure G.6 WordNet viewed as a graph. Figure from Navigli (2016).
+G.4 Word Sense Disambiguation
+The task of selecting the correct sense for a word is called word sense disambigua-
+tion, orWSD . WSD algorithms take as input a word in context and a ﬁxed inventoryword sense
+disambiguation
+WSD of potential word senses and outputs the correct word sense in context.
+
+## Page 9
+
+G.4 • W ORD SENSE DISAMBIGUATION 9
+G.4.1 WSD: The Task and Datasets
+In this section we introduce the task setup for WSD, and then turn to algorithms.
+The inventory of sense tags depends on the task. For sense tagging in the context
+of translation from English to Spanish, the sense tag inventory for an English word
+might be the set of different Spanish translations. For automatic indexing of med-
+ical articles, the sense-tag inventory might be the set of MeSH (Medical Subject
+Headings) thesaurus entries. Or we can use the set of senses from a resource like
+WordNet, or supersenses if we want a coarser-grain set. Figure G.4.1 shows some
+such examples for the word bass.
+WordNet Spanish WordNet
+Sense Translation Supersense Target Word in Context
+bass4lubina FOOD . . . ﬁsh as Paciﬁc salmon and striped bass and. . .
+bass7bajo ARTIFACT . . . play bass because he doesn’t have to solo. . .
+Figure G.7 Some possible sense tag inventories for bass.
+In some situations, we just need to disambiguate a small number of words. In
+such lexical sample tasks, we have a small pre-selected set of target words and an lexical sample
+inventory of senses for each word from some lexicon. Since the set of words and the
+set of senses are small, simple supervised classiﬁcation approaches work very well.
+More commonly, however, we have a harder problem in which we have to dis-
+ambiguate all the words in some text. In this all-words task, the system is given an all-words
+entire texts and a lexicon with an inventory of senses for each entry and we have to
+disambiguate every word in the text (or sometimes just every content word). The
+all-words task is similar to part-of-speech tagging, except with a much larger set of
+tags since each lemma has its own set. A consequence of this larger set of tags is
+data sparseness.
+Supervised all-word disambiguation tasks are generally trained from a semantic
+concordance , a corpus in which each open-class word in each sentence is labeledsemantic
+concordance
+with its word sense from a speciﬁc dictionary or thesaurus, most often WordNet.
+The SemCor corpus is a subset of the Brown Corpus consisting of over 226,036
+words that were manually tagged with WordNet senses (Miller et al. 1993, Landes
+et al. 1998). Other sense-tagged corpora have been built for the SENSEVAL andSe-
+mEval WSD tasks, such as the SENSEVAL -3 Task 1 English all-words test data with
+2282 annotations (Snyder and Palmer, 2004) or the SemEval-13 Task 12 datasets.
+Large semantic concordances are also available in other languages including Dutch
+(V ossen et al., 2011) and German (Henrich et al., 2012).
+Here’s an example from the SemCor corpus showing the WordNet sense num-
+bers of the tagged words; we’ve used the standard WSD notation in which a subscript
+marks the part of speech (Navigli, 2009):
+(G.12) You will ﬁnd9
+vthat avocado1
+nis1
+vunlike1
+jother1
+jfruit1
+nyou have ever1
+rtasted2
+v
+Given each noun, verb, adjective, or adverb word in the hand-labeled test set (say
+fruit), the SemCor-based WSD task is to choose the correct sense from the possible
+senses in WordNet. For fruit this would mean choosing between the correct answer
+fruit1
+n(the ripened reproductive body of a seed plant), and the other two senses fruit2
+n
+(yield; an amount of a product) and fruit3
+n(the consequence of some effort or action).
+Fig. G.8 sketches the task.
+WSD systems are typically evaluated intrinsically, by computing F1 against
+hand-labeled sense tags in a held-out set, such as the SemCor corpus or SemEval
+corpora discussed above.
+
+## Page 10
+
+10 APPENDIX G • W ORD SENSES AND WORDNET
+anelectricguitarandbassplayerstandoﬀtoonesideelectric1: using electricityelectric2:  tenseelectric3: thrillingguitar1 bass1: low range…bass4: sea ﬁsh… bass7: instrument…player1: in gameplayer2: musician player3: actor…stand1: upright…stand5: bear… stand10: put upright…side1: relative region…side3: of body… side11: slope…x1y1x2y2x3y3y4y5y6
+x4x5x6
+Figure G.8 The all-words WSD task, mapping from input words ( x) to WordNet senses
+(y). Only nouns, verbs, adjectives, and adverbs are mapped, and note that some words (like
+guitar in the example) only have one sense in WordNet. Figure inspired by Chaplot and
+Salakhutdinov (2018).
+A surprisingly strong baseline is simply to choose the most frequent sense formost frequent
+sense
+each word from the senses in a labeled corpus (Gale et al., 1992a). For WordNet, this
+corresponds to the ﬁrst sense, since senses in WordNet are generally ordered from
+most frequent to least frequent based on their counts in the SemCor sense-tagged
+corpus. The most frequent sense baseline can be quite accurate, and is therefore
+often used as a default, to supply a word sense when a supervised algorithm has
+insufﬁcient training data.
+A second heuristic, called one sense per discourse is based on the work ofone sense per
+discourse
+Gale et al. (1992b), who noticed that a word appearing multiple times in a text or
+discourse often appears with the same sense. This heuristic seems to hold better for
+coarse-grained senses and particularly when a word’s senses are unrelated, so isn’t
+generally used as a baseline. Nonetheless various kinds of disambiguation tasks
+often include some such bias toward resolving an ambiguity the same way inside a
+discourse segment.
+G.4.2 The WSD Algorithm: Contextual Embeddings
+The best performing WSD algorithm is a simple 1-nearest-neighbor algorithm using
+contextual word embeddings, due to Melamud et al. (2016) and Peters et al. (2018).
+At training time we pass each sentence in the SemCore labeled dataset through any
+contextual embedding (e.g., BERT) resulting in a contextual embedding for each
+labeled token in SemCore. (There are various ways to compute this contextual em-
+bedding vifor a token i; for BERT it is common to pool multiple layers by summing
+the vector representations of ifrom the last four BERT layers). Then for each sense
+sof any word in the corpus, for each of the ntokens of that sense, we average their
+ncontextual representations vito produce a contextual sense embedding v sfors:
+vs=1
+nX
+ivi8vi2tokens (s) (G.13)
+At test time, given a token of a target word tin context, we compute its contextual
+embedding tand choose its nearest neighbor sense from the training set, i.e., the
+
+## Page 11
+
+G.4 • W ORD SENSE DISAMBIGUATION 11
+sense whose sense embedding has the highest cosine with t:
+sense(t) =argmax
+s2senses (t)cosine (t;vs) (G.14)
+Fig. G.9 illustrates the model.
+I  found  the  jar  emptycIcfoundfind1vcthecjarcemptyfind9vfind5vfind4vENCODER
+Figure G.9 The nearest-neighbor algorithm for WSD. In green are the contextual embed-
+dings precomputed for each sense of each word; here we just show a few of the senses for
+ﬁnd. A contextual embedding is computed for the target word found , and then the nearest
+neighbor sense (in this case ﬁnd9v) is chosen. Figure inspired by Loureiro and Jorge (2019).
+What do we do for words we haven’t seen in the sense-labeled training data?
+After all, the number of senses that appear in SemCor is only a small fraction of the
+words in WordNet. The simplest algorithm is to fall back to the Most Frequent Sense
+baseline, i.e. taking the ﬁrst sense in WordNet. But that’s not very satisfactory.
+A more powerful approach, due to Loureiro and Jorge (2019), is to impute the
+missing sense embeddings, bottom-up, by using the WordNet taxonomy and super-
+senses. We get a sense embedding for any higher-level node in the WordNet taxon-
+omy by averaging the embeddings of its children, thus computing the embedding for
+each synset as the average of its sense embeddings, the embedding for a hypernym
+as the average of its synset embeddings, and the lexicographic category (supersense)
+embedding as the average of the large set of synset embeddings with that category.
+More formally, for each missing sense in WordNet ˆ s2W, let the sense embeddings
+for the other members of its synset be Sˆs, the hypernym-speciﬁc synset embeddings
+beHˆs, and the lexicographic (supersense-speciﬁc) synset embeddings be Lˆs. We can
+then compute the sense embedding for ˆ sas follows:
+ifjSˆsj>0;vˆs=1
+jSˆsjX
+vs;8vs2Sˆs (G.15)
+else ifjHˆsj>0;vˆs=1
+jHˆsjX
+vsyn;8vsyn2Hˆs (G.16)
+else ifjLˆsj>0;vˆs=1
+jLˆsjX
+vsyn;8vsyn2Lˆs (G.17)
+Since all of the supersenses have some labeled data in SemCor, the algorithm is
+guaranteed to have some representation for all possible senses by the time the al-
+gorithm backs off to the most general (supersense) information, although of course
+with a very coarse model.
+
+## Page 12
+
+12 APPENDIX G • W ORD SENSES AND WORDNET
+G.5 Alternate WSD algorithms and Tasks
+G.5.1 Feature-Based WSD
+Feature-based algorithms for WSD are extremely simple and function almost as
+well as contextual language model algorithms. The best performing IMS algorithm
+(Zhong and Ng, 2010), augmented by embeddings (Iacobacci et al. 2016, Raganato
+et al. 2017b), uses an SVM classiﬁer to choose the sense for each input word with
+the following simple features of the surrounding words:
+• part-of-speech tags (for a window of 3 words on each side, stopping at sen-
+tence boundaries)
+•collocation features of words or n-grams of lengths 1, 2, 3 at a particular collocation
+location in a window of 3 words on each side (i.e., exactly one word to the
+right, or the two words starting 3 words to the left, and so on).
+• weighted average of embeddings (of all words in a window of 10 words on
+each side, weighted exponentially by distance)
+Consider the ambiguous word bass in the following WSJ sentence:
+(G.18) An electric guitar and bass player stand off to one side,
+If we used a small 2-word window, a standard feature vector might include parts-of-
+speech, unigram and bigram collocation features, and a weighted sum gof embed-
+dings, that is:
+[wi 2;POS i 2;wi 1;POS i 1;wi+1;POS i+1;wi+2;POS i+2;wi 1
+i 2;
+wi+2
+i+1;g(E(wi 2);E(wi 1);E(wi+1);E(wi+2)] (G.19)
+would yield the following vector:
+[guitar, NN, and, CC, player, NN, stand, VB, guitar and,
+player stand, g(E(guitar),E(and),E(player),E(stand))]
+G.5.2 The Lesk Algorithm as WSD Baseline
+Generating sense labeled corpora like SemCor is quite difﬁcult and expensive. An
+alternative class of WSD algorithms, knowledge-based algorithms, rely solely onknowledge-
+based
+WordNet or other such resources and don’t require labeled data. While supervised
+algorithms generally work better, knowledge-based methods can be used in lan-
+guages or domains where thesauruses or dictionaries but not sense labeled corpora
+are available.
+The Lesk algorithm is the oldest and most powerful knowledge-based WSD Lesk algorithm
+method, and is a useful baseline. Lesk is really a family of algorithms that choose
+the sense whose dictionary gloss or deﬁnition shares the most words with the target
+word’s neighborhood. Figure G.10 shows the simplest version of the algorithm,
+often called the Simpliﬁed Lesk algorithm (Kilgarriff and Rosenzweig, 2000). Simpliﬁed Lesk
+As an example of the Lesk algorithm at work, consider disambiguating the word
+bank in the following context:
+(G.20) The bank can guarantee deposits will eventually cover future tuition costs
+because it invests in adjustable-rate mortgage securities.
+given the following two WordNet senses:
+
+## Page 13
+
+G.5 • A LTERNATE WSD ALGORITHMS AND TASKS 13
+function SIMPLIFIED LESK(word, sentence )returns best sense of word
+best-sense most frequent sense for word
+max-overlap 0
+context set of words in sentence
+for each sense insenses of word do
+signature set of words in the gloss and examples of sense
+overlap COMPUTE OVERLAP (signature ,context )
+ifoverlap >max-overlap then
+max-overlap overlap
+best-sense sense
+end
+return (best-sense )
+Figure G.10 The Simpliﬁed Lesk algorithm. The C OMPUTE OVERLAP function returns
+the number of words in common between two sets, ignoring function words or other words
+on a stop list. The original Lesk algorithm deﬁnes the context in a more complex way.
+bank1Gloss: a ﬁnancial institution that accepts deposits and channels the
+money into lending activities
+Examples: “he cashed a check at the bank”, “that bank holds the mortgage
+on my home”
+bank2Gloss: sloping land (especially the slope beside a body of water)
+Examples: “they pulled the canoe up on the bank”, “he sat on the bank of
+the river and watched the currents”
+Sense bank1has two non-stopwords overlapping with the context in (G.20):
+deposits andmortgage , while sense bank2has zero words, so sense bank1is chosen.
+There are many obvious extensions to Simpliﬁed Lesk, such as weighing the
+overlapping words by IDF (inverse document frequency) (Chapter 6) to downweight
+frequent words like function words; best performing is to use word embedding co-
+sine instead of word overlap to compute the similarity between the deﬁnition and the
+context (Basile et al., 2014). Modern neural extensions of Lesk use the deﬁnitions
+to compute sense embeddings that can be directly used instead of SemCor-training
+embeddings (Kumar et al. 2019, Luo et al. 2018a, Luo et al. 2018b).
+G.5.3 Word-in-Context Evaluation
+Word Sense Disambiguation is a much more ﬁne-grained evaluation of word mean-
+ing than the context-free word similarity tasks we described in Chapter 6. Recall that
+tasks like LexSim-999 require systems to match human judgments on the context-
+free similarity between two words (how similar is cuptomug?). We can think of
+WSD as a kind of contextualized similarity task, since our goal is to be able to distin-
+guish the meaning of a word like bass in one context (playing music) from another
+context (ﬁshing).
+Somewhere in between lies the word-in-context task. Here the system is given word-in-context
+two sentences, each with the same target word but in a different sentential context.
+The system must decide whether the target words are used in the same sense in the
+two sentences or in a different sense . Fig. G.11 shows sample pairs from the WiC WiC
+dataset of Pilehvar and Camacho-Collados (2019).
+The WiC sentences are mainly taken from the example usages for senses in
+WordNet. But WordNet senses are very ﬁne-grained. For this reason tasks like
+
+## Page 14
+
+14 APPENDIX G • W ORD SENSES AND WORDNET
+F There’s a lot of trash on the bedof the river —
+I keep a glass of water next to my bedwhen I sleep
+FJustify the margins — The end justiﬁes the means
+TAirpollution — Open a window and let in some air
+T The expanded window will give us time to catch the thieves —
+You have a two-hour window of clear weather to ﬁnish working on the lawn
+Figure G.11 Positive (T) and negative (F) pairs from the WiC dataset (Pilehvar and
+Camacho-Collados, 2019).
+word-in-context ﬁrst cluster the word senses into coarser clusters, so that the two
+sentential contexts for the target word are marked as T if the two senses are in the
+same cluster. WiC clusters all pairs of senses if they are ﬁrst degree connections in
+the WordNet semantic graph, including sister senses, or if they belong to the same
+supersense; we point to other sense clustering algorithms at the end of the chapter.
+The baseline algorithm to solve the WiC task uses contextual embeddings like
+BERT with a simple thresholded cosine. We ﬁrst compute the contextual embed-
+dings for the target word in each of the two sentences, and then compute the cosine
+between them. If it’s above a threshold tuned on a devset we respond true (the two
+senses are the same) else we respond false.
+G.5.4 Wikipedia as a source of training data
+Datasets other than SemCor have been used for all-words WSD. One important di-
+rection is to use Wikipedia as a source of sense-labeled data. When a concept is
+mentioned in a Wikipedia article, the article text may contain an explicit link to the
+concept’s Wikipedia page, which is named by a unique identiﬁer. This link can be
+used as a sense annotation. For example, the ambiguous word baris linked to a
+different Wikipedia article depending on its meaning in context, including the page
+BAR(LAW), the page B AR(MUSIC ), and so on, as in the following Wikipedia
+examples (Mihalcea, 2007).
+In 1834, Sumner was admitted to the [[bar (law) jbar]] at the age of
+twenty-three, and entered private practice in Boston.
+It is danced in 3/4 time (like most waltzes), with the couple turning
+approx. 180 degrees every [[bar (music)jbar]] .
+Jenga is a popular beer in the [[bar (establishment) jbar]] s of Thailand.
+These sentences can then be added to the training data for a supervised system.
+In order to use Wikipedia in this way, however, it is necessary to map from Wiki-
+pedia concepts to whatever inventory of senses is relevant for the WSD application.
+Automatic algorithms that map from Wikipedia to WordNet, for example, involve
+ﬁnding the WordNet sense that has the greatest lexical overlap with the Wikipedia
+sense, by comparing the vector of words in the WordNet synset, gloss, and related
+senses with the vector of words in the Wikipedia page title, outgoing links, and page
+category (Ponzetto and Navigli, 2010). The resulting mapping has been used to
+create BabelNet, a large sense-annotated resource (Navigli and Ponzetto, 2012).
+
+## Page 15
+
+G.6 • U SING THESAURUSES TO IMPROVE EMBEDDINGS 15
+G.6 Using Thesauruses to Improve Embeddings
+Thesauruses have also been used to improve both static and contextual word em-
+beddings. For example, static word embeddings have a problem with antonyms .
+A word like expensive is often very similar in embedding cosine to its antonym
+likecheap . Antonymy information from thesauruses can help solve this problem;
+Fig. G.12 shows nearest neighbors to some target words in GloVe, and the improve-
+ment after one such method.
+Before counterﬁtting After counterﬁtting
+east west north south eastward eastern easterly
+expensive pricey cheaper costly costly pricy overpriced
+British American Australian Britain Brits London BBC
+Figure G.12 The nearest neighbors in GloVe to east,expensive , and British include
+antonyms like west. The right side showing the improvement in GloVe nearest neighbors
+after the counterﬁtting method (Mrk ˇsi´c et al., 2016).
+There are two families of solutions. The ﬁrst requires retraining: we modify the
+embedding training to incorporate thesaurus relations like synonymy, antonym, or
+supersenses. This can be done by modifying the static embedding loss function for
+word2vec (Yu and Dredze 2014, Nguyen et al. 2016) or by modifying contextual
+embedding training (Levine et al. 2020, Lauscher et al. 2019).
+The second, for static embeddings, is more light-weight; after the embeddings
+have been trained we learn a second mapping based on a thesaurus that shifts the
+embeddings of words in such a way that synonyms (according to the thesaurus) are
+pushed closer and antonyms further apart. Such methods are called retroﬁtting retroﬁtting
+(Faruqui et al. 2015, Lengerich et al. 2018) or counterﬁtting (Mrk ˇsi´c et al., 2016).
+G.7 Word Sense Induction
+It is expensive and difﬁcult to build large corpora in which each word is labeled for
+its word sense. For this reason, an unsupervised approach to sense disambiguation,
+often called word sense induction orWSI , is an important direction. In unsu-word sense
+induction
+pervised approaches, we don’t use human-deﬁned word senses. Instead, the set of
+“senses” of each word is created automatically from the instances of each word in
+the training set.
+Most algorithms for word sense induction follow the early work of Sch ¨utze
+(Sch ¨utze 1992, Sch ¨utze 1998) in using some sort of clustering over word embed-
+dings. In training, we use three steps:
+1. For each token wiof word win a corpus, compute a context vector c.
+2. Use a clustering algorithm tocluster these word-token context vectors cinto
+a predeﬁned number of groups or clusters. Each cluster deﬁnes a sense of w.
+3. Compute the vector centroid of each cluster. Each vector centroid sjis a
+sense vector representing that sense of w.
+Since this is an unsupervised algorithm, we don’t have names for each of these
+“senses” of w; we just refer to the jth sense of w.
+To disambiguate a particular token tofwwe again have three steps:
+
+## Page 16
+
+16 APPENDIX G • W ORD SENSES AND WORDNET
+1. Compute a context vector cfort.
+2. Retrieve all sense vectors sjforw.
+3. Assign tto the sense represented by the sense vector sjthat is closest to t.
+All we need is a clustering algorithm and a distance metric between vectors.
+Clustering is a well-studied problem with a wide number of standard algorithms that
+can be applied to inputs structured as vectors of numerical values (Duda and Hart,
+1973). A frequently used technique in language applications is known as agglom-
+erative clustering . In this technique, each of the Ntraining instances is initiallyagglomerative
+clustering
+assigned to its own cluster. New clusters are then formed in a bottom-up fashion by
+the successive merging of the two clusters that are most similar. This process con-
+tinues until either a speciﬁed number of clusters is reached, or some global goodness
+measure among the clusters is achieved. In cases in which the number of training
+instances makes this method too expensive, random sampling can be used on the
+original training set to achieve similar results.
+How can we evaluate unsupervised sense disambiguation approaches? As usual,
+the best way is to do extrinsic evaluation embedded in some end-to-end system; one
+example used in a SemEval bakeoff is to improve search result clustering and di-
+versiﬁcation (Navigli and Vannella, 2013). Intrinsic evaluation requires a way to
+map the automatically derived sense classes into a hand-labeled gold-standard set so
+that we can compare a hand-labeled test set with a set labeled by our unsupervised
+classiﬁer. Various such metrics have been tested, for example in the SemEval tasks
+(Manandhar et al. 2010, Navigli and Vannella 2013, Jurgens and Klapaftis 2013),
+including cluster overlap metrics, or methods that map each sense cluster to a pre-
+deﬁned sense by choosing the sense that (in some training set) has the most overlap
+with the cluster. However it is fair to say that no evaluation metric for this task has
+yet become standard.
+G.8 Summary
+This chapter has covered a wide range of issues concerning the meanings associated
+with lexical items. The following are among the highlights:
+• Aword sense is the locus of word meaning; deﬁnitions and meaning relations
+are deﬁned at the level of the word sense rather than wordforms.
+• Many words are polysemous , having many senses.
+• Relations between senses include synonymy ,antonymy ,meronymy , and
+taxonomic relations hyponymy andhypernymy .
+•WordNet is a large database of lexical relations for English, and WordNets
+exist for a variety of languages.
+•Word-sense disambiguation (WSD ) is the task of determining the correct
+sense of a word in context. Supervised approaches make use of a corpus
+of sentences in which individual words ( lexical sample task ) or all words
+(all-words task ) are hand-labeled with senses from a resource like WordNet.
+SemCor is the largest corpus with WordNet-labeled senses.
+• The standard supervised algorithm for WSD is nearest neighbors with contex-
+tual embeddings.
+• Feature-based algorithms using parts of speech and embeddings of words in
+the context of the target word also work well.
+
+## Page 17
+
+BIBLIOGRAPHICAL AND HISTORICAL NOTES 17
+• An important baseline for WSD is the most frequent sense , equivalent, in
+WordNet, to take the ﬁrst sense .
+• Another baseline is a knowledge-based WSD algorithm called the Lesk al-
+gorithm which chooses the sense whose dictionary deﬁnition shares the most
+words with the target word’s neighborhood.
+•Word sense induction is the task of learning word senses unsupervised.
+Bibliographical and Historical Notes
+Word sense disambiguation traces its roots to some of the earliest applications of
+digital computers. The insight that underlies modern algorithms for word sense dis-
+ambiguation was ﬁrst articulated by Weaver (1949/1955) in the context of machine
+translation:
+If one examines the words in a book, one at a time as through an opaque
+mask with a hole in it one word wide, then it is obviously impossible
+to determine, one at a time, the meaning of the words. [. . . ] But if
+one lengthens the slit in the opaque mask, until one can see not only
+the central word in question but also say N words on either side, then
+if N is large enough one can unambiguously decide the meaning of the
+central word. [. . . ] The practical question is : “What minimum value of
+N will, at least in a tolerable fraction of cases, lead to the correct choice
+of meaning for the central word?”
+Other notions ﬁrst proposed in this early period include the use of a thesaurus for dis-
+ambiguation (Masterman, 1957), supervised training of Bayesian models for disam-
+biguation (Madhu and Lytel, 1965), and the use of clustering in word sense analysis
+(Sparck Jones, 1986).
+Much disambiguation work was conducted within the context of early AI-oriented
+natural language processing systems. Quillian (1968) and Quillian (1969) proposed
+a graph-based approach to language processing, in which the deﬁnition of a word
+was represented by a network of word nodes connected by syntactic and semantic
+relations, and sense disambiguation by ﬁnding the shortest path between senses in
+the graph. Simmons (1973) is another inﬂuential early semantic network approach.
+Wilks proposed one of the earliest non-discrete models with his Preference Seman-
+tics(Wilks 1975c, Wilks 1975b, Wilks 1975a), and Small and Rieger (1982) and
+Riesbeck (1975) proposed understanding systems based on modeling rich procedu-
+ral information for each word. Hirst’s ABSITY system (Hirst and Charniak 1982,
+Hirst 1987, Hirst 1988), which used a technique called marker passing based on se-
+mantic networks, represents the most advanced system of this type. As with these
+largely symbolic approaches, early neural network (at the time called ‘connection-
+ist’) approaches to word sense disambiguation relied on small lexicons with hand-
+coded representations (Cottrell 1985, Kawamoto 1988).
+The earliest implementation of a robust empirical approach to sense disambigua-
+tion is due to Kelly and Stone (1975), who directed a team that hand-crafted a set
+of disambiguation rules for 1790 ambiguous English words. Lesk (1986) was the
+ﬁrst to use a machine-readable dictionary for word sense disambiguation. Fellbaum
+(1998) collects early work on WordNet. Early work using dictionaries as lexical
+
+## Page 18
+
+18 APPENDIX G • W ORD SENSES AND WORDNET
+resources include Amsler’s 1981 use of the Merriam Webster dictionary and Long-
+man’s Dictionary of Contemporary English (Boguraev and Briscoe, 1989).
+Supervised approaches to disambiguation began with the use of decision trees
+by Black (1988). In addition to the IMS and contextual-embedding based methods
+for supervised WSD, recent supervised algorithms includes encoder-decoder models
+(Raganato et al., 2017a).
+The need for large amounts of annotated text in supervised methods led early
+on to investigations into the use of bootstrapping methods (Hearst 1991, Yarowsky
+1995). For example the semi-supervised algorithm of Diab and Resnik (2002) is
+based on aligned parallel corpora in two languages. For example, the fact that the
+French word catastrophe might be translated as English disaster in one instance
+andtragedy in another instance can be used to disambiguate the senses of the two
+English words (i.e., to choose senses of disaster andtragedy that are similar).
+The earliest use of clustering in the study of word senses was by Sparck Jones
+(1986); Pedersen and Bruce (1997), Sch ¨utze (1997), and Sch ¨utze (1998) applied dis-
+tributional methods. Clustering word senses into coarse senses has also been used coarse senses
+to address the problem of dictionary senses being too ﬁne-grained (Section G.5.3)
+(Dolan 1994, Chen and Chang 1998, Mihalcea and Moldovan 2001, Agirre and
+de Lacalle 2003, Palmer et al. 2004, Navigli 2006, Snow et al. 2007, Pilehvar et al.
+2013). Corpora with clustered word senses for training supervised clustering algo-
+rithms include Palmer et al. (2006) and OntoNotes (Hovy et al., 2006). OntoNotes
+See Pustejovsky (1995), Pustejovsky and Boguraev (1996), Martin (1986), and
+Copestake and Briscoe (1995), inter alia, for computational approaches to the rep-
+resentation of polysemy. Pustejovsky’s theory of the generative lexicon , and ingenerative
+lexicon
+particular his theory of the qualia structure of words, is a way of accounting for thequalia
+structure
+dynamic systematic polysemy of words in context.
+Historical overviews of WSD include Agirre and Edmonds (2006) and Navigli
+(2009).
+Exercises
+G.1 Collect a small corpus of example sentences of varying lengths from any
+newspaper or magazine. Using WordNet or any standard dictionary, deter-
+mine how many senses there are for each of the open-class words in each sen-
+tence. How many distinct combinations of senses are there for each sentence?
+How does this number seem to vary with sentence length?
+G.2 Using WordNet or a standard reference dictionary, tag each open-class word
+in your corpus with its correct tag. Was choosing the correct sense always a
+straightforward task? Report on any difﬁculties you encountered.
+G.3 Using your favorite dictionary, simulate the original Lesk word overlap dis-
+ambiguation algorithm described on page 13 on the phrase Time ﬂies like an
+arrow . Assume that the words are to be disambiguated one at a time, from
+left to right, and that the results from earlier decisions are used later in the
+process.
+G.4 Build an implementation of your solution to the previous exercise. Using
+WordNet, implement the original Lesk word overlap disambiguation algo-
+rithm described on page 13 on the phrase Time ﬂies like an arrow .
+
+## Page 19
+
+Exercises 19
+Agirre, E. and O. L. de Lacalle. 2003. Clustering WordNet
+word senses. RANLP 2003 .
+Agirre, E. and P. Edmonds, eds. 2006. Word Sense Disam-
+biguation: Algorithms and Applications . Kluwer.
+Amsler, R. A. 1981. A taxonomy for English nouns and
+verbs. ACL.
+Basile, P., A. Caputo, and G. Semeraro. 2014. An enhanced
+Lesk word sense disambiguation algorithm through a dis-
+tributional semantic model. COLING .
+Black, E. 1988. An experiment in computational discrimi-
+nation of English word senses. IBM Journal of Research
+and Development , 32(2):185–194.
+Boguraev, B. K. and T. Briscoe, eds. 1989. Computational
+Lexicography for Natural Language Processing . Long-
+man.
+Chaplot, D. S. and R. Salakhutdinov. 2018. Knowledge-
+based word sense disambiguation using topic models.
+AAAI .
+Chen, J. N. and J. S. Chang. 1998. Topical clustering of
+MRD senses based on information retrieval techniques.
+Computational Linguistics , 24(1):61–96.
+Ciaramita, M. and Y . Altun. 2006. Broad-coverage sense
+disambiguation and information extraction with a super-
+sense sequence tagger. EMNLP .
+Ciaramita, M. and M. Johnson. 2003. Supersense tagging of
+unknown nouns in WordNet. EMNLP-2003 .
+Copestake, A. and T. Briscoe. 1995. Semi-productive
+polysemy and sense extension. Journal of Semantics ,
+12(1):15–68.
+Cottrell, G. W. 1985. A Connectionist Approach to Word
+Sense Disambiguation . Ph.D. thesis, University of
+Rochester, Rochester, NY . Revised version published by
+Pitman, 1989.
+Diab, M. and P. Resnik. 2002. An unsupervised method for
+word sense tagging using parallel corpora. ACL.
+Dolan, B. 1994. Word sense ambiguation: Clustering related
+senses. COLING .
+Duda, R. O. and P. E. Hart. 1973. Pattern Classiﬁcation and
+Scene Analysis . John Wiley and Sons.
+Faruqui, M., J. Dodge, S. K. Jauhar, C. Dyer, E. Hovy, and
+N. A. Smith. 2015. Retroﬁtting word vectors to semantic
+lexicons. NAACL HLT .
+Fellbaum, C., ed. 1998. WordNet: An Electronic Lexical
+Database . MIT Press.
+Gale, W. A., K. W. Church, and D. Yarowsky. 1992a. Es-
+timating upper and lower bounds on the performance of
+word-sense disambiguation programs. ACL.
+Gale, W. A., K. W. Church, and D. Yarowsky. 1992b. One
+sense per discourse. HLT.
+Haber, J. and M. Poesio. 2020. Assessing polyseme sense
+similarity through co-predication acceptability and con-
+textualised embedding distance. *SEM .
+Hearst, M. A. 1991. Noun homograph disambiguation. Pro-
+ceedings of the 7th Conference of the University of Wa-
+terloo Centre for the New OED and Text Research .
+Henrich, V ., E. Hinrichs, and T. V odolazova. 2012. We-
+bCAGe – a web-harvested corpus annotated with Ger-
+maNet senses. EACL .Hirst, G. 1987. Semantic Interpretation and the Resolution
+of Ambiguity . Cambridge University Press.
+Hirst, G. 1988. Resolving lexical ambiguity computationally
+with spreading activation and polaroid words. In S. L.
+Small, G. W. Cottrell, and M. K. Tanenhaus, eds, Lexical
+Ambiguity Resolution , 73–108. Morgan Kaufmann.
+Hirst, G. and E. Charniak. 1982. Word sense and case slot
+disambiguation. AAAI .
+Hovy, E. H., M. P. Marcus, M. Palmer, L. A. Ramshaw,
+and R. Weischedel. 2006. OntoNotes: The 90% solution.
+HLT-NAACL .
+Iacobacci, I., M. T. Pilehvar, and R. Navigli. 2016. Em-
+beddings for word sense disambiguation: An evaluation
+study. ACL.
+Jurgens, D. and I. P. Klapaftis. 2013. SemEval-2013 task 13:
+Word sense induction for graded and non-graded senses.
+*SEM .
+Kawamoto, A. H. 1988. Distributed representations of am-
+biguous words and their resolution in connectionist net-
+works. In S. L. Small, G. W. Cottrell, and M. Tanen-
+haus, eds, Lexical Ambiguity Resolution , 195–228. Mor-
+gan Kaufman.
+Kelly, E. F. and P. J. Stone. 1975. Computer Recognition of
+English Word Senses . North-Holland.
+Kilgarriff, A. and J. Rosenzweig. 2000. Framework and re-
+sults for English SENSEV AL. Computers and the Hu-
+manities , 34:15–48.
+Kumar, S., S. Jat, K. Saxena, and P. Talukdar. 2019. Zero-
+shot word sense disambiguation using sense deﬁnition
+embeddings. ACL.
+Landes, S., C. Leacock, and R. I. Tengi. 1998. Building se-
+mantic concordances. In C. Fellbaum, ed., WordNet: An
+Electronic Lexical Database , 199–216. MIT Press.
+Lauscher, A., I. Vuli ´c, E. M. Ponti, A. Korhonen, and
+G. Glava ˇs. 2019. Informing unsupervised pretraining
+with external linguistic knowledge. ArXiv preprint
+arXiv:1909.02339.
+Lengerich, B., A. Maas, and C. Potts. 2018. Retroﬁtting dis-
+tributional embeddings to knowledge graphs with func-
+tional relations. COLING .
+Lesk, M. E. 1986. Automatic sense disambiguation using
+machine readable dictionaries: How to tell a pine cone
+from an ice cream cone. Proceedings of the 5th Interna-
+tional Conference on Systems Documentation .
+Levine, Y ., B. Lenz, O. Dagan, O. Ram, D. Pad-
+nos, O. Sharir, S. Shalev-Shwartz, A. Shashua, and
+Y . Shoham. 2020. SenseBERT: Driving some sense into
+BERT. ACL.
+Loureiro, D. and A. Jorge. 2019. Language modelling makes
+sense: Propagating representations through WordNet for
+full-coverage word sense disambiguation. ACL.
+Luo, F., T. Liu, Z. He, Q. Xia, Z. Sui, and B. Chang. 2018a.
+Leveraging gloss knowledge in neural word sense disam-
+biguation by hierarchical co-attention. EMNLP .
+Luo, F., T. Liu, Q. Xia, B. Chang, and Z. Sui. 2018b. Incor-
+porating glosses into neural word sense disambiguation.
+ACL.
+Madhu, S. and D. Lytel. 1965. A ﬁgure of merit technique for
+the resolution of non-grammatical ambiguity. Mechanical
+Translation , 8(2):9–13.
+
+## Page 20
+
+20 Appendix G • Word Senses and WordNet
+Manandhar, S., I. P. Klapaftis, D. Dligach, and S. Pradhan.
+2010. SemEval-2010 task 14: Word sense induction &
+disambiguation. SemEval .
+Martin, J. H. 1986. The acquisition of polysemy. ICML .
+Masterman, M. 1957. The thesaurus in syntax and semantics.
+Mechanical Translation , 4(1):1–2.
+Melamud, O., J. Goldberger, and I. Dagan. 2016. con-
+text2vec: Learning generic context embedding with bidi-
+rectional LSTM. CoNLL .
+Mihalcea, R. 2007. Using Wikipedia for automatic word
+sense disambiguation. NAACL-HLT .
+Mihalcea, R. and D. Moldovan. 2001. Automatic genera-
+tion of a coarse grained WordNet. NAACL Workshop on
+WordNet and Other Lexical Resources .
+Miller, G. A., C. Leacock, R. I. Tengi, and R. T. Bunker.
+1993. A semantic concordance. HLT.
+Morris, W., ed. 1985. American Heritage Dictionary , 2nd
+college edition edition. Houghton Mifﬂin.
+Mrkˇsi´c, N., D. ´O. S ´eaghdha, B. Thomson, M. Ga ˇsi´c, L. M.
+Rojas-Barahona, P.-H. Su, D. Vandyke, T.-H. Wen, and
+S. Young. 2016. Counter-ﬁtting word vectors to linguis-
+tic constraints. NAACL HLT .
+Navigli, R. 2006. Meaningful clustering of senses helps
+boost word sense disambiguation performance. COL-
+ING/ACL .
+Navigli, R. 2009. Word sense disambiguation: A survey.
+ACM Computing Surveys , 41(2).
+Navigli, R. 2016. Chapter 20. ontologies. In R. Mitkov, ed.,
+The Oxford handbook of computational linguistics . Ox-
+ford University Press.
+Navigli, R. and S. P. Ponzetto. 2012. BabelNet: The auto-
+matic construction, evaluation and application of a wide-
+coverage multilingual semantic network. Artiﬁcial Intel-
+ligence , 193:217–250.
+Navigli, R. and D. Vannella. 2013. SemEval-2013 task 11:
+Word sense induction and disambiguation within an end-
+user application. *SEM .
+Nguyen, K. A., S. Schulte im Walde, and N. T. Vu. 2016.
+Integrating distributional lexical contrast into word em-
+beddings for antonym-synonym distinction. ACL.
+Palmer, M., O. Babko-Malaya, and H. T. Dang. 2004. Dif-
+ferent sense granularities for different applications. HLT-
+NAACL Workshop on Scalable Natural Language Under-
+standing .
+Palmer, M., H. T. Dang, and C. Fellbaum. 2006. Making
+ﬁne-grained and coarse-grained sense distinctions, both
+manually and automatically. Natural Language Engineer-
+ing, 13(2):137–163.
+Pedersen, T. and R. Bruce. 1997. Distinguishing word senses
+in untagged text. EMNLP .
+Peters, M., M. Neumann, M. Iyyer, M. Gardner, C. Clark,
+K. Lee, and L. Zettlemoyer. 2018. Deep contextualized
+word representations. NAACL HLT .
+Pilehvar, M. T. and J. Camacho-Collados. 2019. WiC: the
+word-in-context dataset for evaluating context-sensitive
+meaning representations. NAACL HLT .
+Pilehvar, M. T., D. Jurgens, and R. Navigli. 2013. Align,
+disambiguate and walk: A uniﬁed approach for measur-
+ing semantic similarity. ACL.Ponzetto, S. P. and R. Navigli. 2010. Knowledge-rich word
+sense disambiguation rivaling supervised systems. ACL.
+Pu, X., N. Pappas, J. Henderson, and A. Popescu-Belis.
+2018. Integrating weakly supervised word sense disam-
+biguation into neural machine translation. TACL , 6:635–
+649.
+Pustejovsky, J. 1995. The Generative Lexicon . MIT Press.
+Pustejovsky, J. and B. K. Boguraev, eds. 1996. Lexical Se-
+mantics: The Problem of Polysemy . Oxford University
+Press.
+Quillian, M. R. 1968. Semantic memory. In M. Minsky, ed.,
+Semantic Information Processing , 227–270. MIT Press.
+Quillian, M. R. 1969. The teachable language compre-
+hender: A simulation program and theory of language.
+CACM , 12(8):459–476.
+Raganato, A., C. D. Bovi, and R. Navigli. 2017a. Neural se-
+quence learning models for word sense disambiguation.
+EMNLP .
+Raganato, A., J. Camacho-Collados, and R. Navigli. 2017b.
+Word sense disambiguation: A uniﬁed evaluation frame-
+work and empirical comparison. EACL .
+Riesbeck, C. K. 1975. Conceptual analysis. In R. C. Schank,
+ed.,Conceptual Information Processing , 83–156. Ameri-
+can Elsevier, New York.
+Schneider, N., J. D. Hwang, V . Srikumar, J. Prange, A. Blod-
+gett, S. R. Moeller, A. Stern, A. Bitan, and O. Abend.
+2018. Comprehensive supersense disambiguation of En-
+glish prepositions and possessives. ACL.
+Sch¨utze, H. 1992. Dimensions of meaning. Proceedings of
+Supercomputing ’92 . IEEE Press.
+Sch¨utze, H. 1997. Ambiguity Resolution in Language Learn-
+ing: Computational and Cognitive Models . CSLI Publi-
+cations, Stanford, CA.
+Sch¨utze, H. 1998. Automatic word sense discrimination.
+Computational Linguistics , 24(1):97–124.
+Simmons, R. F. 1973. Semantic networks: Their compu-
+tation and use for understanding English sentences. In
+R. C. Schank and K. M. Colby, eds, Computer Models of
+Thought and Language , 61–113. W.H. Freeman & Co.
+Small, S. L. and C. Rieger. 1982. Parsing and comprehend-
+ing with Word Experts. In W. G. Lehnert and M. H.
+Ringle, eds, Strategies for Natural Language Processing ,
+89–147. Lawrence Erlbaum.
+Snow, R., S. Prakash, D. Jurafsky, and A. Y . Ng. 2007.
+Learning to merge word senses. EMNLP/CoNLL .
+Snyder, B. and M. Palmer. 2004. The English all-words task.
+SENSEVAL-3 .
+Sparck Jones, K. 1986. Synonymy and Semantic Classiﬁca-
+tion. Edinburgh University Press, Edinburgh. Republica-
+tion of 1964 PhD Thesis.
+Tsvetkov, Y ., N. Schneider, D. Hovy, A. Bhatia, M. Faruqui,
+and C. Dyer. 2014. Augmenting English adjective senses
+with supersenses. LREC .
+V ossen, P., A. G ¨or¨og, F. Laan, M. Van Gompel, R. Izquierdo,
+and A. Van Den Bosch. 2011. Dutch-semcor: building a
+semantically annotated corpus for dutch. Proceedings of
+eLex.
+
+## Page 21
+
+Exercises 21
+Weaver, W. 1949/1955. Translation. In W. N. Locke and
+A. D. Boothe, eds, Machine Translation of Languages ,
+15–23. MIT Press. Reprinted from a memorandum writ-
+ten by Weaver in 1949.
+Wilks, Y . 1975a. An intelligent analyzer and understander of
+English. CACM , 18(5):264–274.
+Wilks, Y . 1975b. Preference semantics. In E. L. Keenan,
+ed.,The Formal Semantics of Natural Language , 329–
+350. Cambridge Univ. Press.
+Wilks, Y . 1975c. A preferential, pattern-seeking, seman-
+tics for natural language inference. Artiﬁcial Intelligence ,
+6(1):53–74.
+Yarowsky, D. 1995. Unsupervised word sense disambigua-
+tion rivaling supervised methods. ACL.
+Yu, M. and M. Dredze. 2014. Improving lexical embeddings
+with semantic knowledge. ACL.
+Zhong, Z. and H. T. Ng. 2010. It makes sense: A wide-
+coverage word sense disambiguation system for free text.
+ACL.
+

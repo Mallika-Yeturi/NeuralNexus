@@ -1,0 +1,1554 @@
+# 16
+
+## Page 1
+
+Speech and Language Processing. Daniel Jurafsky & James H. Martin. Copyright ©2024. All
+rights reserved. Draft of January 12, 2025.
+CHAPTER
+16Automatic Speech Recognition
+and Text-to-Speech
+I KNOW not whether
+I see your meaning: if I do, it lies
+Upon the wordy wavelets of your voice,
+Dim as an evening shadow in a brook,
+Thomas Lovell Beddoes, 1851
+Understanding spoken language, or at least transcribing the words into writing, is
+one of the earliest goals of computer language processing. In fact, speech processing
+predates the computer by many decades!
+The ﬁrst machine that recognized speech
+was a toy from the 1920s. “Radio Rex”,
+shown to the right, was a celluloid dog
+that moved (by means of a spring) when
+the spring was released by 500 Hz acous-
+tic energy. Since 500 Hz is roughly the
+ﬁrst formant of the vowel [eh] in “Rex”,
+Rex seemed to come when he was called
+(David, Jr. and Selfridge, 1962).
+In modern times, we expect more of our automatic systems. The task of auto-
+matic speech recognition (ASR ) is to map any waveform like this: ASR
+to the appropriate string of words:
+It's time for lunch!
+Automatic transcription of speech by any speaker in any environment is still far from
+solved, but ASR technology has matured to the point where it is now viable for many
+practical tasks. Speech is a natural interface for communicating with smart home ap-
+pliances, personal assistants, or cellphones, where keyboards are less convenient, in
+telephony applications like call-routing (“Accounting, please”) or in sophisticated
+dialogue applications (“I’d like to change the return date of my ﬂight”). ASR is also
+useful for general transcription, for example for automatically generating captions
+for audio or video text (transcribing movies or videos or live discussions). Transcrip-
+tion is important in ﬁelds like law where dictation plays an important role. Finally,
+ASR is important as part of augmentative communication (interaction between com-
+puters and humans with some disability resulting in difﬁculties or inabilities in typ-
+ing or audition). The blind Milton famously dictated Paradise Lost to his daughters,
+and Henry James dictated his later novels after a repetitive stress injury.
+What about the opposite problem, going from text to speech? This is a problem
+with an even longer history. In Vienna in 1769, Wolfgang von Kempelen built for
+
+## Page 2
+
+2CHAPTER 16 • A UTOMATIC SPEECH RECOGNITION AND TEXT-TO-SPEECH
+the Empress Maria Theresa the famous Mechanical Turk, a chess-playing automaton
+consisting of a wooden box ﬁlled with gears, behind which sat a robot mannequin
+who played chess by moving pieces with his mechanical arm. The Turk toured Eu-
+rope and the Americas for decades, defeating Napoleon Bonaparte and even playing
+Charles Babbage. The Mechanical Turk might have been one of the early successes
+of artiﬁcial intelligence were it not for the fact that it was, alas, a hoax, powered by
+a human chess player hidden inside the box.
+What is less well known is that von Kempelen, an extraordinarily
+proliﬁc inventor, also built between
+1769 and 1790 what was deﬁnitely
+not a hoax: the ﬁrst full-sentence
+speech synthesizer, shown partially to
+the right. His device consisted of a
+bellows to simulate the lungs, a rub-
+ber mouthpiece and a nose aperture, a
+reed to simulate the vocal folds, var-
+ious whistles for the fricatives, and a
+small auxiliary bellows to provide the puff of air for plosives. By moving levers
+with both hands to open and close apertures, and adjusting the ﬂexible leather “vo-
+cal tract”, an operator could produce different consonants and vowels.
+More than two centuries later, we no longer build our synthesizers out of wood
+and leather, nor do we need human operators. The modern task of speech synthesis ,speech
+synthesis
+also called text-to-speech orTTS , is exactly the reverse of ASR; to map text: text-to-speech
+TTSIt's time for lunch!
+to an acoustic waveform:
+Modern speech synthesis has a wide variety of applications. TTS is used in
+conversational agents that conduct dialogues with people, plays a role in devices
+that read out loud for the blind or in games, and can be used to speak for sufferers
+of neurological disorders, such as the late astrophysicist Steven Hawking who, after
+he lost the use of his voice because of ALS, spoke by manipulating a TTS system.
+In the next sections we’ll show how to do ASR with encoder-decoders, intro-
+duce the CTC loss functions, the standard word error rate evaluation metric, and
+describe how acoustic features are extracted. We’ll then see how TTS can be mod-
+eled with almost the same algorithm in reverse, and conclude with a brief mention
+of other speech tasks.
+16.1 The Automatic Speech Recognition Task
+Before describing algorithms for ASR, let’s talk about how the task itself varies.
+One dimension of variation is vocabulary size. Some ASR tasks can be solved with
+extremely high accuracy, like those with a 2-word vocabulary ( yesversus no) or
+an 11 word vocabulary like digit recognition (recognizing sequences of digits in-digit
+recognition
+cluding zero tonine plus oh). Open-ended tasks like transcribing videos or human
+conversations, with large vocabularies of up to 60,000 words, are much harder.
+
+## Page 3
+
+16.1 • T HEAUTOMATIC SPEECH RECOGNITION TASK 3
+A second dimension of variation is who the speaker is talking to. Humans speak-
+ing to machines (either dictating or talking to a dialogue system) are easier to recog-
+nize than humans speaking to humans. Read speech , in which humans are reading read speech
+out loud, for example in audio books, is also relatively easy to recognize. Recog-
+nizing the speech of two humans talking to each other in conversational speech ,conversational
+speech
+for example, for transcribing a business meeting, is the hardest. It seems that when
+humans talk to machines, or read without an audience present, they simplify their
+speech quite a bit, talking more slowly and more clearly.
+A third dimension of variation is channel and noise. Speech is easier to recognize
+if it’s recorded in a quiet room with head-mounted microphones than if it’s recorded
+by a distant microphone on a noisy city street, or in a car with the window open.
+A ﬁnal dimension of variation is accent or speaker-class characteristics. Speech
+is easier to recognize if the speaker is speaking the same dialect or variety that the
+system was trained on. Speech by speakers of regional or ethnic dialects, or speech
+by children can be quite difﬁcult to recognize if the system is only trained on speak-
+ers of standard dialects, or only adult speakers.
+A number of publicly available corpora with human-created transcripts are used
+to create ASR test and training sets to explore this variation; we mention a few of
+them here since you will encounter them in the literature. LibriSpeech is a large LibriSpeech
+open-source read-speech 16 kHz dataset with over 1000 hours of audio books from
+the LibriV ox project, with transcripts aligned at the sentence level (Panayotov et al.,
+2015). It is divided into an easier (“clean”) and a more difﬁcult portion (“other”)
+with the clean portion of higher recording quality and with accents closer to US
+English. This was done by running a speech recognizer (trained on read speech from
+the Wall Street Journal) on all the audio, computing the WER for each speaker based
+on the gold transcripts, and dividing the speakers roughly in half, with recordings
+from lower-WER speakers called “clean” and recordings from higher-WER speakers
+“other”.
+TheSwitchboard corpus of prompted telephone conversations between strangers Switchboard
+was collected in the early 1990s; it contains 2430 conversations averaging 6 min-
+utes each, totaling 240 hours of 8 kHz speech and about 3 million words (Godfrey
+et al., 1992). Switchboard has the singular advantage of an enormous amount of
+auxiliary hand-done linguistic labeling, including parses, dialogue act tags, phonetic
+and prosodic labeling, and discourse and information structure. The CALLHOME CALLHOME
+corpus was collected in the late 1990s and consists of 120 unscripted 30-minute
+telephone conversations between native speakers of English who were usually close
+friends or family (Canavan et al., 1997).
+The Santa Barbara Corpus of Spoken American English (Du Bois et al., 2005) is
+a large corpus of naturally occurring everyday spoken interactions from all over the
+United States, mostly face-to-face conversation, but also town-hall meetings, food
+preparation, on-the-job talk, and classroom lectures. The corpus was anonymized by
+removing personal names and other identifying information (replaced by pseudonyms
+in the transcripts, and masked in the audio).
+CORAAL is a collection of over 150 sociolinguistic interviews with African CORAAL
+American speakers, with the goal of studying African American Language ( AAL ),
+the many variations of language used in African American communities (Kendall
+and Farrington, 2020). The interviews are anonymized with transcripts aligned at
+the utterance level. The CHiME Challenge is a series of difﬁcult shared tasks with CHiME
+corpora that deal with robustness in ASR. The CHiME 5 task, for example, is ASR of
+conversational speech in real home environments (speciﬁcally dinner parties). The
+
+## Page 4
+
+4CHAPTER 16 • A UTOMATIC SPEECH RECOGNITION AND TEXT-TO-SPEECH
+corpus contains recordings of twenty different dinner parties in real homes, each
+with four participants, and in three locations (kitchen, dining area, living room),
+recorded both with distant room microphones and with body-worn mikes. The
+HKUST Mandarin Telephone Speech corpus has 1206 ten-minute telephone con- HKUST
+versations between speakers of Mandarin across China, including transcripts of the
+conversations, which are between either friends or strangers (Liu et al., 2006). The
+AISHELL-1 corpus contains 170 hours of Mandarin read speech of sentences taken AISHELL-1
+from various domains, read by different speakers mainly from northern China (Bu
+et al., 2017).
+Figure 16.1 shows the rough percentage of incorrect words (the word error rate ,
+or WER, deﬁned on page 16) from state-of-the-art systems on some of these tasks.
+Note that the error rate on read speech (like the LibriSpeech audiobook corpus) is
+around 2%; this is a solved task, although these numbers come from systems that re-
+quire enormous computational resources. By contrast, the error rate for transcribing
+conversations between humans is much higher; 5.8 to 11% for the Switchboard and
+CALLHOME corpora. The error rate is higher yet again for speakers of varieties
+like African American Vernacular English, and yet again for difﬁcult conversational
+tasks like transcription of 4-speaker dinner party speech, which can have error rates
+as high as 81.3%. Character error rates (CER) are also much lower for read Man-
+darin speech than for natural conversation.
+English Tasks WER %
+LibriSpeech audiobooks 960hour clean 1.4
+LibriSpeech audiobooks 960hour other 2.6
+Switchboard telephone conversations between strangers 5.8
+CALLHOME telephone conversations between family 11.0
+Sociolinguistic interviews, CORAAL (AAL) 27.0
+CHiMe5 dinner parties with body-worn microphones 47.9
+CHiMe5 dinner parties with distant microphones 81.3
+Chinese (Mandarin) Tasks CER %
+AISHELL-1 Mandarin read speech corpus 6.7
+HKUST Mandarin Chinese telephone conversations 23.5
+Figure 16.1 Rough Word Error Rates (WER = % of words misrecognized) reported around
+2020 for ASR on various American English recognition tasks, and character error rates (CER)
+for two Chinese recognition tasks.
+16.2 Feature Extraction for ASR: Log Mel Spectrum
+The ﬁrst step in ASR is to transform the input waveform into a sequence of acoustic
+feature vectors , each vector representing the information in a small time window feature vector
+of the signal. Let’s see how to convert a raw waveﬁle to the most commonly used
+features, sequences of log mel spectrum vectors. A speech signal processing course
+is recommended for more details.
+16.2.1 Sampling and Quantization
+The input to a speech recognizer is a complex series of changes in air pressure.
+These changes in air pressure obviously originate with the speaker and are caused
+
+## Page 5
+
+16.2 • F EATURE EXTRACTION FOR ASR: L OGMELSPECTRUM 5
+by the speciﬁc way that air passes through the glottis and out the oral or nasal cav-
+ities. We represent sound waves by plotting the change in air pressure over time.
+One metaphor which sometimes helps in understanding these graphs is that of a ver-
+tical plate blocking the air pressure waves (perhaps in a microphone in front of a
+speaker’s mouth, or the eardrum in a hearer’s ear). The graph measures the amount
+ofcompression orrarefaction (uncompression) of the air molecules at this plate.
+Figure 16.2 shows a short segment of a waveform taken from the Switchboard corpus
+of telephone speech of the vowel [iy] from someone saying “she just had a baby”.
+Time (s)0 0.03875–0.016970.02283
+0
+Figure 16.2 A waveform of an instance of the vowel [iy] (the last vowel in the word “baby”). The y-axis
+shows the level of air pressure above and below normal atmospheric pressure. The x-axis shows time. Notice
+that the wave repeats regularly.
+The ﬁrst step in digitizing a sound wave like Fig. 16.2 is to convert the analog
+representations (ﬁrst air pressure and then analog electric signals in a microphone)
+into a digital signal. This analog-to-digital conversion has two steps: sampling and sampling
+quantization . To sample a signal, we measure its amplitude at a particular time; the
+sampling rate is the number of samples taken per second. To accurately measure a
+wave, we must have at least two samples in each cycle: one measuring the positive
+part of the wave and one measuring the negative part. More than two samples per
+cycle increases the amplitude accuracy, but fewer than two samples causes the fre-
+quency of the wave to be completely missed. Thus, the maximum frequency wave
+that can be measured is one whose frequency is half the sample rate (since every
+cycle needs two samples). This maximum frequency for a given sampling rate is
+called the Nyquist frequency . Most information in human speech is in frequenciesNyquist
+frequency
+below 10,000 Hz; thus, a 20,000 Hz sampling rate would be necessary for com-
+plete accuracy. But telephone speech is ﬁltered by the switching network, and only
+frequencies less than 4,000 Hz are transmitted by telephones. Thus, an 8,000 Hz
+sampling rate is sufﬁcient for telephone-bandwidth speech like the Switchboard
+corpus, while 16,000 Hz sampling is often used for microphone speech.
+Although using higher sampling rates produces higher ASR accuracy, we can’t
+combine different sampling rates for training and testing ASR systems. Thus if
+we are testing on a telephone corpus like Switchboard (8 KHz sampling), we must
+downsample our training corpus to 8 KHz. Similarly, if we are training on mul-
+tiple corpora and one of them includes telephone speech, we downsample all the
+wideband corpora to 8Khz.
+Amplitude measurements are stored as integers, either 8 bit (values from -128–
+127) or 16 bit (values from -32768–32767). This process of representing real-valued
+numbers as integers is called quantization ; all values that are closer together than quantization
+the minimum granularity (the quantum size) are represented identically. We refer to
+each sample at time index nin the digitized, quantized waveform as x[n].
+Once data is quantized, it is stored in various formats. One parameter of these
+formats is the sample rate and sample size discussed above; telephone speech is
+often sampled at 8 kHz and stored as 8-bit samples, and microphone data is often
+sampled at 16 kHz and stored as 16-bit samples. Another parameter is the number of
+
+## Page 6
+
+6CHAPTER 16 • A UTOMATIC SPEECH RECOGNITION AND TEXT-TO-SPEECH
+channels . For stereo data or for two-party conversations, we can store both channels channel
+in the same ﬁle or we can store them in separate ﬁles. A ﬁnal parameter is individual
+sample storage—linearly or compressed. One common compression format used for
+telephone speech is m-law (often written u-law but still pronounced mu-law). The
+intuition of log compression algorithms like m-law is that human hearing is more
+sensitive at small intensities than large ones; the log represents small values with
+more faithfulness at the expense of more error on large values. The linear (unlogged)
+values are generally referred to as linear PCM values (PCM stands for pulse code PCM
+modulation, but never mind that). Here’s the equation for compressing a linear PCM
+sample value xto 8-bit m-law, (where m=255 for 8 bits):
+F(x) =sgn(x)log(1+mjxj)
+log(1+m) 1x1 (16.1)
+There are a number of standard ﬁle formats for storing the resulting digitized wave-
+ﬁle, such as Microsoft’s .wav and Apple’s AIFF all of which have special headers;
+simple headerless “raw” ﬁles are also used. For example, the .wav format is a sub-
+set of Microsoft’s RIFF format for multimedia ﬁles; RIFF is a general format that
+can represent a series of nested chunks of data and control information. Figure 16.3
+shows a simple .wav ﬁle with a single data chunk together with its format chunk.
+Figure 16.3 Microsoft waveﬁle header format, assuming simple ﬁle with one chunk. Fol-
+lowing this 44-byte header would be the data chunk.
+16.2.2 Windowing
+From the digitized, quantized representation of the waveform, we need to extract
+spectral features from a small window of speech that characterizes part of a par-
+ticular phoneme. Inside this small window, we can roughly think of the signal as
+stationary (that is, its statistical properties are constant within this region). (By stationary
+contrast, in general, speech is a non-stationary signal, meaning that its statistical non-stationary
+properties are not constant over time). We extract this roughly stationary portion of
+speech by using a window which is non-zero inside a region and zero elsewhere, run-
+ning this window across the speech signal and multiplying it by the input waveform
+to produce a windowed waveform.
+The speech extracted from each window is called a frame . The windowing is frame
+characterized by three parameters: the window size orframe size of the window
+(its width in milliseconds), the frame stride , (also called shift oroffset ) between stride
+successive windows, and the shape of the window.
+To extract the signal we multiply the value of the signal at time n,s[n]by the
+value of the window at time n,w[n]:
+y[n] =w[n]s[n] (16.2)
+The window shape sketched in Fig. 16.4 is rectangular ; you can see the ex- rectangular
+tracted windowed signal looks just like the original signal. The rectangular window,
+
+## Page 7
+
+16.2 • F EATURE EXTRACTION FOR ASR: L OGMELSPECTRUM 7
+Shift10 msWindow25 msShift10 msWindow25 msWindow25 ms
+Figure 16.4 Windowing, showing a 25 ms rectangular window with a 10ms stride.
+however, abruptly cuts off the signal at its boundaries, which creates problems when
+we do Fourier analysis. For this reason, for acoustic feature creation we more com-
+monly use the Hamming window, which shrinks the values of the signal toward Hamming
+zero at the window boundaries, avoiding discontinuities. Figure 16.5 shows both;
+the equations are as follows (assuming a window that is Lframes long):
+rectangular w [n] =1 0nL 1
+0 otherwise(16.3)
+Hamming w [n] =
+0:54 0:46cos (2pn
+L)0nL 1
+0 otherwise(16.4)
+Time (s)00.0475896–0.50.49990Rectangular windowHamming window
+Time (s)0.004559380.0256563–0.48260.49990
+Time (s)0.004559380.0256563–0.50.49990
+Figure 16.5 Windowing a sine wave with the rectangular or Hamming windows.
+16.2.3 Discrete Fourier Transform
+The next step is to extract spectral information for our windowed signal; we need to
+know how much energy the signal contains at different frequency bands. The tool
+
+## Page 8
+
+8CHAPTER 16 • A UTOMATIC SPEECH RECOGNITION AND TEXT-TO-SPEECH
+for extracting spectral information for discrete frequency bands for a discrete-time
+(sampled) signal is the discrete Fourier transform orDFT .Discrete
+Fourier
+transformDFT The input to the DFT is a windowed signal x[n]:::x[m], and the output, for each
+ofNdiscrete frequency bands, is a complex number X[k]representing the magni-
+tude and phase of that frequency component in the original signal. If we plot the
+magnitude against the frequency, we can visualize the spectrum (see Appendix H
+for more on spectra). For example, Fig. 16.6 shows a 25 ms Hamming-windowed
+portion of a signal and its spectrum as computed by a DFT (with some additional
+smoothing).
+Time (s)0.0141752 0.039295–0.041210.04414
+0
+Frequency (Hz)0 8000Sound pressure level (dB /Hz)
+–20020
+(a) (b)
+Figure 16.6 (a) A 25 ms Hamming-windowed portion of a signal from the vowel [iy]
+and (b) its spectrum computed by a DFT.
+We do not introduce the mathematical details of the DFT here, except to note
+that Fourier analysis relies on Euler’s formula , with jas the imaginary unit: Euler’s formula
+ejq=cosq+jsinq (16.5)
+As a brief reminder for those students who have already studied signal processing,
+the DFT is deﬁned as follows:
+X[k] =N 1X
+n=0x[n]e j2p
+Nkn(16.6)
+A commonly used algorithm for computing the DFT is the fast Fourier transformfast Fourier
+transform
+orFFT . This implementation of the DFT is very efﬁcient but only works for values FFT
+ofNthat are powers of 2.
+16.2.4 Mel Filter Bank and Log
+The results of the FFT tell us the energy at each frequency band. Human hearing,
+however, is not equally sensitive at all frequency bands; it is less sensitive at higher
+frequencies. This bias toward low frequencies helps human recognition, since in-
+formation in low frequencies (like formants) is crucial for distinguishing vowels or
+nasals, while information in high frequencies (like stop bursts or fricative noise) is
+less crucial for successful recognition. Modeling this human perceptual property
+improves speech recognition performance in the same way.
+We implement this intuition by collecting energies, not equally at each frequency
+band, but according to the melscale, an auditory frequency scale. A mel(Stevens mel
+et al. 1937, Stevens and V olkmann 1940) is a unit of pitch. Pairs of sounds that are
+perceptually equidistant in pitch are separated by an equal number of mels. The mel
+
+## Page 9
+
+16.3 • S PEECH RECOGNITION ARCHITECTURE 9
+frequency mcan be computed from the raw acoustic frequency by a log transforma-
+tion:
+mel(f) =1127ln (1+f
+700) (16.7)
+We implement this intuition by creating a bank of ﬁlters that collect energy from
+each frequency band, spread logarithmically so that we have very ﬁne resolution
+at low frequencies, and less resolution at high frequencies. Figure 16.7 shows a
+sample bank of triangular ﬁlters that implement this idea, that can be multiplied by
+the spectrum to get a mel spectrum.
+m1m2mM...mel spectrum0770000.51AmplitudeFrequency (Hz)8K
+Figure 16.7 The mel ﬁlter bank (Davis and Mermelstein, 1980). Each triangular ﬁlter,
+spaced logarithmically along the mel scale, collects energy from a given frequency range.
+Finally, we take the log of each of the mel spectrum values. The human response
+to signal level is logarithmic (like the human response to frequency). Humans are
+less sensitive to slight differences in amplitude at high amplitudes than at low ampli-
+tudes. In addition, using a log makes the feature estimates less sensitive to variations
+in input such as power variations due to the speaker’s mouth moving closer or further
+from the microphone.
+16.3 Speech Recognition Architecture
+The basic architecture for ASR is the encoder-decoder (implemented with either
+RNNs or Transformers), exactly the same architecture introduced for MT in Chap-
+ter 13. Generally we start from the log mel spectral features described in the previous
+section, and map to letters, although it’s also possible to map to induced morpheme-
+like chunks like wordpieces or BPE.
+Fig. 16.8 sketches the standard encoder-decoder architecture, which is com-
+monly referred to as the attention-based encoder decoder orAED , orlisten attend AED
+and spell (LAS ) after the two papers which ﬁrst applied it to speech (Chorowskilisten attend
+and spell
+et al. 2014, Chan et al. 2016). The input is a sequence of tacoustic feature vectors
+F=f1;f2;:::;ft, one vector per 10 ms frame. The output can be letters or word-
+pieces; we’ll assume letters here. Thus the output sequence Y= (hSOSi;y1;:::;ymhEOSi),
+assuming special start of sequence and end of sequence tokens hsosiandheosiand
+each yiis a character; for English we might choose the set:
+yi2fa;b;c;:::;z;0;:::;9;hspacei;hcommai;hperiodi;hapostrophei;hunkig
+Of course the encoder-decoder architecture is particularly appropriate when in-
+put and output sequences have stark length differences, as they do for speech, with
+very long acoustic feature sequences mapping to much shorter sequences of letters
+
+## Page 10
+
+10 CHAPTER 16 • A UTOMATIC SPEECH RECOGNITION AND TEXT-TO-SPEECH
+ENCODER…DECODER……ym
+Feature ComputationSubsampling…Hftf180-dimensional log Mel spectrumper frameShorter sequence Xy1<s>iy2ity3t‘y4‘sy5s y6 ty7tiy8imy9mex1xn
+Figure 16.8 Schematic architecture for an encoder-decoder speech recognizer.
+or words. A single word might be 5 letters long but, supposing it lasts about 2
+seconds, would take 200 acoustic frames (of 10ms each).
+Because this length difference is so extreme for speech, encoder-decoder ar-
+chitectures for speech need to have a special compression stage that shortens the
+acoustic feature sequence before the encoder stage. (Alternatively, we can use a loss
+function that is designed to deal well with compression, like the CTC loss function
+we’ll introduce in the next section.)
+The goal of the subsampling is to produce a shorter sequence X=x1;:::;xnthat
+will be the input to the encoder. The simplest algorithm is a method sometimes
+called low frame rate (Pundak and Sainath, 2016): for time iwe stack (concatenate) low frame rate
+the acoustic feature vector fiwith the prior two vectors fi 1andfi 2to make a new
+vector three times longer. Then we simply delete fi 1and fi 2. Thus instead of
+(say) a 40-dimensional acoustic feature vector every 10 ms, we have a longer vector
+(say 120-dimensional) every 30 ms, with a shorter sequence length n=t
+3.1
+After this compression stage, encoder-decoders for speech use the same archi-
+tecture as for MT or other text, composed of either RNNs (LSTMs) or Transformers.
+For inference, the probability of the output string Yis decomposed as:
+p(y1;:::; yn) =nY
+i=1p(yijy1;:::; yi 1;X) (16.8)
+We can produce each letter of the output via greedy decoding:
+ˆyi=argmax char2Alphabet P(charjy1:::yi 1;X) (16.9)
+Alternatively we can use beam search as described in the next section. This is par-
+ticularly relevant when we are adding a language model.
+Adding a language model Since an encoder-decoder model is essentially a con-
+ditional language model, encoder-decoders implicitly learn a language model for the
+output domain of letters from their training data. However, the training data (speech
+paired with text transcriptions) may not include sufﬁcient text to train a good lan-
+guage model. After all, it’s easier to ﬁnd enormous amounts of pure text training
+1There are also more complex alternatives for subsampling, like using a convolutional net that down-
+samples with max pooling, or layers of pyramidal RNNs , RNNs where each successive layer has half
+the number of RNNs as the previous layer.
+
+## Page 11
+
+16.4 • CTC 11
+data than it is to ﬁnd text paired with speech. Thus we can can usually improve a
+model at least slightly by incorporating a very large language model.
+The simplest way to do this is to use beam search to get a ﬁnal beam of hy-
+pothesized sentences; this beam is sometimes called an n-best list . We then use a n-best list
+language model to rescore each hypothesis on the beam. The scoring is done by in- rescore
+terpolating the score assigned by the language model with the encoder-decoder score
+used to create the beam, with a weight ltuned on a held-out set. Also, since most
+models prefer shorter sentences, ASR systems normally have some way of adding a
+length factor. One way to do this is to normalize the probability by the number of
+characters in the hypothesis jYjc. The following is thus a typical scoring function
+(Chan et al., 2016):
+score(YjX) =1
+jYjclogP(YjX)+llogPLM(Y) (16.10)
+16.3.1 Learning
+Encoder-decoders for speech are trained with the normal cross-entropy loss gener-
+ally used for conditional language models. At timestep iof decoding, the loss is the
+log probability of the correct token (letter) yi:
+LCE= logp(yijy1;:::; yi 1;X) (16.11)
+The loss for the entire sentence is the sum of these losses:
+LCE= mX
+i=1logp(yijy1;:::; yi 1;X) (16.12)
+This loss is then backpropagated through the entire end-to-end model to train the
+entire encoder-decoder.
+As we described in Chapter 13, we normally use teacher forcing, in which the
+decoder history is forced to be the correct gold yirather than the predicted ˆ yi. It’s
+also possible to use a mixture of the gold and decoder output, for example using
+the gold output 90% of the time, but with probability .1 taking the decoder output
+instead:
+LCE= logp(yijy1;:::; ˆyi 1;X) (16.13)
+16.4 CTC
+We pointed out in the previous section that speech recognition has two particular
+properties that make it very appropriate for the encoder-decoder architecture, where
+the encoder produces an encoding of the input that the decoder uses attention to
+explore. First, in speech we have a very long acoustic input sequence Xmapping to
+a much shorter sequence of letters Y, and second, it’s hard to know exactly which
+part of Xmaps to which part of Y.
+In this section we brieﬂy introduce an alternative to encoder-decoder: an algo-
+rithm and loss function called CTC , short for Connectionist Temporal Classiﬁca- CTC
+tion(Graves et al., 2006), that deals with these problems in a very different way. The
+intuition of CTC is to output a single character for every frame of the input, so that
+
+## Page 12
+
+12 CHAPTER 16 • A UTOMATIC SPEECH RECOGNITION AND TEXT-TO-SPEECH
+the output is the same length as the input, and then to apply a collapsing function
+that combines sequences of identical letters, resulting in a shorter sequence.
+Let’s imagine inference on someone saying the word dinner , and let’s suppose
+we had a function that chooses the most probable letter for each input spectral frame
+representation xi. We’ll call the sequence of letters corresponding to each input
+frame an alignment , because it tells us where in the acoustic signal each letter aligns alignment
+to. Fig. 16.9 shows one such alignment, and what happens if we use a collapsing
+function that just removes consecutive duplicate letters.
+X (input)A (alignment)Y (output)dx1ix2ix3nx4nx5nx6nx7ex8rx9rx10rx11rx12rx13rx14dinerwavefile
+Figure 16.9 A naive algorithm for collapsing an alignment between input and letters.
+Well, that doesn’t work; our naive algorithm has transcribed the speech as diner ,
+notdinner ! Collapsing doesn’t handle double letters. There’s also another problem
+with our naive function; it doesn’t tell us what symbol to align with silence in the
+input. We don’t want to be transcribing silence as random letters!
+The CTC algorithm solves both problems by adding to the transcription alphabet
+a special symbol for a blank , which we’ll represent as . The blank can be used in blank
+the alignment whenever we don’t want to transcribe a letter. Blank can also be used
+between letters; since our collapsing function collapses only consecutive duplicate
+letters, it won’t collapse across . More formally, let’s deﬁne the mapping B:a!y
+between an alignment aand an output y, which collapses all repeated letters and
+then removes all blanks. Fig. 16.10 sketches this collapsing function B.
+X (input)A (alignment)remove blanksdx1ix2x3nx4nx5x6nx7ex8rx9rx10rx11rx12x13x14dinernmerge duplicatesdinernY (output)dinern␣␣␣␣␣␣␣
+Figure 16.10 The CTC collapsing function B, showing the space blank character ; re-
+peated (consecutive) characters in an alignment Aare removed to form the output Y.
+The CTC collapsing function is many-to-one; lots of different alignments map
+to the same output string. For example, the alignment shown in Fig. 16.10 is not
+the only alignment that results in the string dinner . Fig. 16.11 shows some other
+alignments that would produce the same output.
+It’s useful to think of the set of all alignments that might produce the same output
+Y. We’ll use the inverse of our Bfunction, called B 1, and represent that set as
+B 1(Y).
+
+## Page 13
+
+16.4 • CTC 13
+dinnneeerrr␣␣ddinnnerr␣␣␣dddinnnerr␣i␣␣␣␣␣
+Figure 16.11 Three other legitimate alignments producing the transcript dinner .
+16.4.1 CTC Inference
+Before we see how to compute PCTC(YjX)let’s ﬁrst see how CTC assigns a proba-
+bility to one particular alignment ˆA=fˆa1;:::; ˆang. CTC makes a strong conditional
+independence assumption: it assumes that, given the input X, the CTC model output
+atat time tis independent of the output labels at any other time ai. Thus:
+PCTC(AjX) =TY
+t=1p(atjX) (16.14)
+Thus to ﬁnd the best alignment ˆA=fˆa1;:::; ˆaTgwe can greedily choose the charac-
+ter with the max probability at each time step t:
+ˆat=argmax
+c2Cpt(cjX) (16.15)
+We then pass the resulting sequence Ato the CTC collapsing function Bto get the
+output sequence Y.
+Let’s talk about how this simple inference algorithm for ﬁnding the best align-
+ment A would be implemented. Because we are making a decision at each time
+point, we can treat CTC as a sequence-modeling task, where we output one letter
+ˆytat time tcorresponding to each input token xt, eliminating the need for a full de-
+coder. Fig. 16.12 sketches this architecture, where we take an encoder, produce a
+hidden state htat each timestep, and decode by taking a softmax over the character
+vocabulary at each time step.
+ENCODER…yn
+Feature ComputationSubsampling…ftf1 log Mel spectrumShorter inputsequence Xy1iy2iy3iy4tx1xnClassiﬁer+softmax…ty5……output lettersequence Y
+Figure 16.12 Inference with CTC: using an encoder-only model, with decoding done by
+simple softmaxes over the hidden state htat each output step.
+Alas, there is a potential ﬂaw with the inference algorithm sketched in (Eq. 16.15)
+and Fig. 16.11. The problem is that we chose the most likely alignment A, but the
+
+## Page 14
+
+14 CHAPTER 16 • A UTOMATIC SPEECH RECOGNITION AND TEXT-TO-SPEECH
+most likely alignment may not correspond to the most likely ﬁnal collapsed output
+string Y. That’s because there are many possible alignments that lead to the same
+output string, and hence the most likely output string might not correspond to the
+most probable alignment. For example, imagine the most probable alignment Afor
+an input X= [x1x2x3]is the string [a b ] but the next two most probable alignments
+are [bb] and [b b]. The output Y=[b b], summing over those two alignments,
+might be more probable than Y=[a b].
+For this reason, the most probable output sequence Yis the one that has, not
+the single best CTC alignment, but the highest sum over the probability of all its
+possible alignments:
+PCTC(YjX) =X
+A2B 1(Y)P(AjX)
+=X
+A2B 1(Y)TY
+t=1p(atjht)
+ˆY=argmax
+YPCTC(YjX) (16.16)
+Alas, summing over all alignments is very expensive (there are a lot of alignments),
+so we approximate this sum by using a version of Viterbi beam search that cleverly
+keeps in the beam the high-probability alignments that map to the same output string,
+and sums those as an approximation of (Eq. 16.16). See Hannun (2017) for a clear
+explanation of this extension of beam search for CTC.
+Because of the strong conditional independence assumption mentioned earlier
+(that the output at time tis independent of the output at time t 1, given the input),
+CTC does not implicitly learn a language model over the data (unlike the attention-
+based encoder-decoder architectures). It is therefore essential when using CTC to
+interpolate a language model (and some sort of length factor L(Y)) using interpola-
+tion weights that are trained on a devset:
+score CTC(YjX) =logPCTC(YjX)+l1logPLM(Y)l2L(Y) (16.17)
+16.4.2 CTC Training
+To train a CTC-based ASR system, we use negative log-likelihood loss with a special
+CTC loss function. Thus the loss for an entire dataset Dis the sum of the negative
+log-likelihoods of the correct output Yfor each input X:
+LCTC=X
+(X;Y)2D logPCTC(YjX) (16.18)
+To compute CTC loss function for a single input pair (X;Y), we need the probability
+of the output Ygiven the input X. As we saw in Eq. 16.16, to compute the probability
+of a given output Ywe need to sum over all the possible alignments that would
+collapse to Y. In other words:
+PCTC(YjX) =X
+A2B 1(Y)TY
+t=1p(atjht) (16.19)
+Naively summing over all possible alignments is not feasible (there are too many
+alignments). However, we can efﬁciently compute the sum by using dynamic pro-
+
+## Page 15
+
+16.4 • CTC 15
+gramming to merge alignments, with a version of the forward-backward algo-
+rithm also used to train HMMs (Appendix A) and CRFs. The original dynamic pro-
+gramming algorithms for both training and inference are laid out in (Graves et al.,
+2006); see (Hannun, 2017) for a detailed explanation of both.
+16.4.3 Combining CTC and Encoder-Decoder
+It’s also possible to combine the two architectures/loss functions we’ve described,
+the cross-entropy loss from the encoder-decoder architecture, and the CTC loss.
+Fig. 16.13 shows a sketch. For training, we can simply weight the two losses with a
+ltuned on a devset:
+L= llogPencdec(YjX) (1 l)logPctc(YjX) (16.20)
+For inference, we can combine the two with the language model (or the length
+penalty), again with learned weights:
+ˆY=argmax
+Y[llogPencdec(YjX) (1 l)logPCTC(YjX)+glogPLM(Y)](16.21)
+ENCODER…DECODER…H<s>it‘s timx1xn……i   t   ’   s      t   i   m   e  …CTC LossEncoder-Decoder Loss
+Figure 16.13 Combining the CTC and encoder-decoder loss functions.
+16.4.4 Streaming Models: RNN-T for improving CTC
+Because of the strong independence assumption in CTC (assuming that the output
+at time tis independent of the output at time t 1), recognizers based on CTC
+don’t achieve as high an accuracy as the attention-based encoder-decoder recog-
+nizers. CTC recognizers have the advantage, however, that they can be used for
+streaming . Streaming means recognizing words on-line rather than waiting until streaming
+the end of the sentence to recognize them. Streaming is crucial for many applica-
+tions, from commands to dictation, where we want to start recognition while the
+user is still talking. Algorithms that use attention need to compute the hidden state
+sequence over the entire input ﬁrst in order to provide the attention distribution con-
+text, before the decoder can start decoding. By contrast, a CTC algorithm can input
+letters from left to right immediately.
+If we want to do streaming, we need a way to improve CTC recognition to re-
+move the conditional independent assumption, enabling it to know about output his-
+tory. The RNN-Transducer ( RNN-T ), shown in Fig. 16.14, is just such a model RNN-T
+(Graves 2012, Graves et al. 2013). The RNN-T has two main components: a CTC
+acoustic model, and a separate language model component called the predictor that
+conditions on the output token history. At each time step t, the CTC encoder outputs
+
+## Page 16
+
+16 CHAPTER 16 • A UTOMATIC SPEECH RECOGNITION AND TEXT-TO-SPEECH
+a hidden state henc
+tgiven the input x1:::xt. The language model predictor takes as in-
+put the previous output token (not counting blanks), outputting a hidden state hpred
+u.
+The two are passed through another network whose output is then passed through a
+softmax to predict the next character.
+PRNN T(YjX) =X
+A2B 1(Y)P(AjX)
+=X
+A2B 1(Y)TY
+t=1p(atjht;y<ut)
+ENCODERP ( yt,u | x[1..t] , y[1..u-1] )
+xtPREDICTIONNETWORKyu-1JOINT NETWORKhencthpreduSOFTMAXzt,uDECODER
+Figure 16.14 The RNN-T model computing the output token distribution at time tby inte-
+grating the output of a CTC acoustic encoder and a separate ‘predictor’ language model.
+16.5 ASR Evaluation: Word Error Rate
+The standard evaluation metric for speech recognition systems is the word error word error
+rate. The word error rate is based on how much the word string returned by the
+recognizer (the hypothesized word string) differs from a reference transcription.
+The ﬁrst step in computing word error is to compute the minimum edit distance in
+words between the hypothesized and correct strings, giving us the minimum num-
+ber of word substitutions , word insertions , and word deletions necessary to map
+between the correct and hypothesized strings. The word error rate (WER) is then
+deﬁned as follows (note that because the equation includes insertions, the error rate
+can be greater than 100%):
+Word Error Rate =100Insertions +Substitutions +Deletions
+Total Words in Correct Transcript
+Here is a sample alignment between a reference and a hypothesis utterance from alignment
+the CallHome corpus, showing the counts used to compute the error rate:
+REF: i *** ** UM the PHONE IS i LEFT THE portable **** PHONE UPSTAIRS last night
+HYP: i GOT IT TO the ***** FULLEST i LOVE TO portable FORM OF STORES last night
+Eval: I I S D S S S I S S
+This utterance has six substitutions, three insertions, and one deletion:
+Word Error Rate =1006+3+1
+13=76:9%
+
+## Page 17
+
+16.5 • ASR E VALUATION : W ORD ERROR RATE 17
+The standard method for computing word error rates is a free script called sclite ,
+available from the National Institute of Standards and Technologies (NIST) (NIST,
+2005). Sclite is given a series of reference (hand-transcribed, gold-standard) sen-
+tences and a matching set of hypothesis sentences. Besides performing alignments,
+and computing word error rate, sclite performs a number of other useful tasks. For
+example, for error analysis it gives useful information such as confusion matrices
+showing which words are often misrecognized for others, and summarizes statistics
+of words that are often inserted or deleted. sclite also gives error rates by speaker
+(if sentences are labeled for speaker ID), as well as useful statistics like the sentence
+error rate , the percentage of sentences with at least one word error.Sentence error
+rate
+Statistical signiﬁcance for ASR: MAPSSWE or MacNemar
+As with other language processing algorithms, we need to know whether a particular
+improvement in word error rate is signiﬁcant or not.
+The standard statistical tests for determining if two word error rates are different
+is the Matched-Pair Sentence Segment Word Error (MAPSSWE) test, introduced in
+Gillick and Cox (1989).
+The MAPSSWE test is a parametric test that looks at the difference between
+the number of word errors the two systems produce, averaged across a number of
+segments. The segments may be quite short or as long as an entire utterance; in
+general, we want to have the largest number of (short) segments in order to justify
+the normality assumption and to maximize power. The test requires that the errors
+in one segment be statistically independent of the errors in another segment. Since
+ASR systems tend to use trigram LMs, we can approximate this requirement by
+deﬁning a segment as a region bounded on both sides by words that both recognizers
+get correct (or by turn/utterance boundaries). Here’s an example from NIST (2007)
+with four regions:
+I II III IV
+REF: |it was|the best|of|times it|was the worst|of times| |it was
+| | | | | | | |
+SYS A:|ITS |the best|of|times it|IS the worst |of times|OR|it was
+| | | | | | | |
+SYS B:|it was|the best| |times it|WON the TEST |of times| |it was
+In region I, system A has two errors (a deletion and an insertion) and system B
+has zero; in region III, system A has one error (a substitution) and system B has two.
+Let’s deﬁne a sequence of variables Zrepresenting the difference between the errors
+in the two systems as follows:
+Ni
+Athe number of errors made on segment iby system A
+Ni
+B the number of errors made on segment iby system B
+Z Ni
+A Ni
+B;i=1;2;;nwhere nis the number of segments
+In the example above, the sequence of Zvalues isf2; 1; 1;1g. Intuitively, if
+the two systems are identical, we would expect the average difference, that is, the
+average of the Zvalues, to be zero. If we call the true average of the differences
+muz, we would thus like to know whether muz=0. Following closely the original
+proposal and notation of Gillick and Cox (1989), we can estimate the true average
+from our limited sample as ˆmz=Pn
+i=1Zi=n. The estimate of the variance of the Zi’s
+is
+s2
+z=1
+n 1nX
+i=1(Zi mz)2(16.22)
+
+## Page 18
+
+18 CHAPTER 16 • A UTOMATIC SPEECH RECOGNITION AND TEXT-TO-SPEECH
+Let
+W=ˆmz
+sz=pn(16.23)
+For a large enough n(>50),Wwill approximately have a normal distribution with
+unit variance. The null hypothesis is H0:mz=0, and it can thus be rejected if
+2P(Zjwj)0:05 (two-tailed) or P(Zjwj)0:05 (one-tailed), where Zis
+standard normal and wis the realized value W; these probabilities can be looked up
+in the standard tables of the normal distribution.
+Earlier work sometimes used McNemar’s test for signiﬁcance, but McNemar’s McNemar’s test
+is only applicable when the errors made by the system are independent, which is not
+true in continuous speech recognition, where errors made on a word are extremely
+dependent on errors made on neighboring words.
+Could we improve on word error rate as a metric? It would be nice, for exam-
+ple, to have something that didn’t give equal weight to every word, perhaps valuing
+content words like Tuesday more than function words like aorof. While researchers
+generally agree that this would be a good idea, it has proved difﬁcult to agree on
+a metric that works in every application of ASR. For dialogue systems, however,
+where the desired semantic output is more clear, a metric called slot error rate or
+concept error rate has proved extremely useful; it is discussed in Chapter 15 on page
+??.
+16.6 TTS
+The goal of text-to-speech (TTS) systems is to map from strings of letters to wave-
+forms, a technology that’s important for a variety of applications from dialogue sys-
+tems to games to education.
+Like ASR systems, TTS systems are generally based on the encoder-decoder
+architecture, either using LSTMs or Transformers. There is a general difference in
+training. The default condition for ASR systems is to be speaker-independent: they
+are trained on large corpora with thousands of hours of speech from many speakers
+because they must generalize well to an unseen test speaker. By contrast, in TTS, it’s
+less crucial to use multiple voices, and so basic TTS systems are speaker-dependent:
+trained to have a consistent voice, on much less data, but all from one speaker. For
+example, one commonly used public domain dataset, the LJ speech corpus, consists
+of 24 hours of one speaker, Linda Johnson, reading audio books in the LibriV ox
+project (Ito and Johnson, 2017), much smaller than standard ASR corpora which are
+hundreds or thousands of hours.2
+We generally break up the TTS task into two components. The ﬁrst component
+is an encoder-decoder model for spectrogram prediction : it maps from strings of
+letters to mel spectrographs: sequences of mel spectral values over time. Thus we
+2There is also recent TTS research on the task of multi-speaker TTS, in which a system is trained on
+speech from many speakers, and can switch between different voices.
+
+## Page 19
+
+16.6 • TTS 19
+might map from this string:
+It's time for lunch!
+to the following mel spectrogram:
+The second component maps from mel spectrograms to waveforms. Generating
+waveforms from intermediate representations like spectrograms is called vocoding vocoding
+and this second component is called a vocoder : vocoder
+These standard encoder-decoder algorithms for TTS are still quite computation-
+ally intensive, so a signiﬁcant focus of modern research is on ways to speed them
+up.
+16.6.1 TTS Preprocessing: Text normalization
+Before either of these two steps, however, TTS systems require text normaliza-
+tion preprocessing for handling non-standard words : numbers, monetary amounts,non-standard
+words
+dates, and other concepts that are verbalized differently than they are spelled. A TTS
+system seeing a number like 151needs to know to verbalize it as one hundred ﬁfty
+oneif it occurs as $151 but as one ﬁfty one if it occurs in the context 151 Chapulte-
+pec Ave. . The number 1750 can be spoken in at least four different ways, depending
+on the context:
+seventeen fifty: (in“The European economy in 1750” )
+one seven five zero: (in“The password is 1750” )
+seventeen hundred and fifty: (in“1750 dollars” )
+one thousand, seven hundred, and fifty: (in“1750 dollars” )
+Often the verbalization of a non-standard word depends on its meaning (what
+Taylor (2009) calls its semiotic class ). Fig. 16.15 lays out some English non-
+standard word types.
+Many classes have preferred realizations. A year is generally read as paired
+digits (e.g., seventeen fifty for 1750). $3.2 billion must be read out with the
+word dollars at the end, as three point two billion dollars . Some ab-
+breviations like N.Y. are expanded (to New York ), while other acronyms like GPU
+are pronounced as letter sequences. In languages with grammatical gender, normal-
+ization may depend on morphological properties. In French, the phrase 1 mangue
+(‘one mangue’) is normalized to une mangue , but 1 ananas (‘one pineapple’) is
+normalized to un ananas . In German, Heinrich IV (‘Henry IV’) can be normalized
+toHeinrich der Vierte ,Heinrich des Vierten ,Heinrich dem Vierten , or
+Heinrich den Vierten depending on the grammatical case of the noun (Demberg,
+2006).
+
+## Page 20
+
+20 CHAPTER 16 • A UTOMATIC SPEECH RECOGNITION AND TEXT-TO-SPEECH
+semiotic class examples verbalization
+abbreviations gov’t , N.Y., mph government
+acronyms read as letters GPU , D.C., PC, UN, IBM G P U
+cardinal numbers 12, 45, 1/2, 0.6 twelve
+ordinal numbers May 7, 3rd, Bill Gates III seventh
+numbers read as digits Room 101 one oh one
+times 3.20, 11:45 eleven forty ﬁve
+dates 28/02 (or in US, 2/28) February twenty eighth
+years 1999 , 80s, 1900s, 2045 nineteen ninety nine
+money $3.45 ,e250, $200K three dollars forty ﬁve
+money in tr/m/billions $3.45 billion three point four ﬁve billion dollars
+percentage 75% 3.4% seventy ﬁve percent
+Figure 16.15 Some types of non-standard words in text normalization; see Sproat et al.
+(2001) and (van Esch and Sproat, 2018) for many more.
+Modern end-to-end TTS systems can learn to do some normalization themselves,
+but TTS systems are only trained on a limited amount of data (like the 220,000 words
+we mentioned above for the LJ corpus (Ito and Johnson, 2017)), and so a separate
+normalization step is important.
+Normalization can be done by rule or by an encoder-decoder model. Rule-based
+normalization is done in two stages: tokenization and verbalization. In the tokeniza-
+tion stage we hand-write rules to detect non-standard words. These can be regular
+expressions, like the following for detecting years:
+/(1[89][0-9][0-9])j(20[0-9][0-9]/
+A second pass of rules express how to verbalize each semiotic class. Larger TTS
+systems instead use more complex rule-systems, like the Kestral system of (Ebden
+and Sproat, 2015), which ﬁrst classiﬁes and parses each input into a normal form
+and then produces text using a verbalization grammar. Rules have the advantage
+that they don’t require training data, and they can be designed for high precision, but
+can be brittle, and require expert rule-writers so are hard to maintain.
+The alternative model is to use encoder-decoder models, which have been shown
+to work better than rules for such transduction tasks, but do require expert-labeled
+training sets in which non-standard words have been replaced with the appropriate
+verbalization; such training sets for some languages are available (Sproat and Gor-
+man 2018, Zhang et al. 2019).
+In the simplest encoder-decoder setting, we simply treat the problem like ma-
+chine translation, training a system to map from:
+They live at 224 Mission St.
+to
+They live at two twenty four Mission Street
+While encoder-decoder algorithms are highly accurate, they occasionally pro-
+duce errors that are egregious; for example normalizing 45 minutes asforty ﬁve mil-
+limeters . To address this, more complex systems use mechanisms like lightweight
+covering grammars , which enumerate a large set of possible verbalizations but
+don’t try to disambiguate, to constrain the decoding to avoid such outputs (Zhang
+et al., 2019).
+16.6.2 TTS: Spectrogram prediction
+The exact same architecture we described for ASR—the encoder-decoder with attention–
+can be used for the ﬁrst component of TTS. Here we’ll give a simpliﬁed overview
+
+## Page 21
+
+16.6 • TTS 21
+of the Tacotron2 architecture (Shen et al., 2018), which extends the earlier Tacotron Tacotron2
+(Wang et al., 2017) architecture and the Wavenet vocoder (van den Oord et al., Wavenet
+2016). Fig. 16.16 sketches out the entire architecture.
+The encoder’s job is to take a sequence of letters and produce a hidden repre-
+sentation representing the letter sequence, which is then used by the attention mech-
+anism in the decoder. The Tacotron2 encoder ﬁrst maps every input grapheme to
+a 512-dimensional character embedding. These are then passed through a stack
+of 3 convolutional layers, each containing 512 ﬁlters with shape 5 1, i.e. each
+ﬁlter spanning 5 characters, to model the larger letter context. The output of the
+ﬁnal convolutional layer is passed through a biLSTM to produce the ﬁnal encod-
+ing. It’s common to use a slightly higher quality (but slower) version of attention
+called location-based attention , in which the computation of the avalues (Eq. ??location-based
+attention
+in Chapter 8) makes use of the avalues from the prior time-state.
+In the decoder, the predicted mel spectrum from the prior time slot is passed
+through a small pre-net as a bottleneck. This prior output is then concatenated with
+the encoder’s attention vector context and passed through 2 LSTM layers. The out-
+put of this LSTM is used in two ways. First, it is passed through a linear layer, and
+some output processing, to autoregressively predict one 80-dimensional log-mel ﬁl-
+terbank vector frame (50 ms, with a 12.5 ms stride) at each step. Second, it is passed
+through another linear layer to a sigmoid to make a “stop token prediction” decision
+about whether to stop producing output.
+While linear spectrograms discard phase information (and aretherefore lossy), algorithms such as Grifﬁn-Lim [14] are capable ofestimating this discarded information, which enables time-domainconversion via the inverse short-time Fourier transform. Mel spectro-grams discard even more information, presenting a challenging in-verse problem. However, in comparison to the linguistic and acousticfeatures used in WaveNet, the mel spectrogram is a simpler, lower-level acoustic representation of audio signals. It should thereforebe straightforward for a similar WaveNet model conditioned on melspectrograms to generate audio, essentially as a neural vocoder. In-deed, we will show that it is possible to generate high quality audiofrom mel spectrograms using a modiﬁed WaveNet architecture.2.2. Spectrogram Prediction NetworkAs in Tacotron, mel spectrograms are computed through a short-time Fourier transform (STFT) using a 50 ms frame size, 12.5 msframe hop, and a Hann window function. We experimented with a5 ms frame hop to match the frequency of the conditioning inputsin the original WaveNet, but the corresponding increase in temporalresolution resulted in signiﬁcantly more pronunciation issues.We transform the STFT magnitude to the mel scale using an 80channel mel ﬁlterbank spanning 125 Hz to 7.6 kHz, followed by logdynamic range compression. Prior to log compression, the ﬁlterbankoutput magnitudes are clipped to a minimum value of 0.01 in orderto limit dynamic range in the logarithmic domain.The network is composed of an encoder and a decoder with atten-tion. The encoder converts a character sequence into a hidden featurerepresentation which the decoder consumes to predict a spectrogram.Input characters are represented using a learned 512-dimensionalcharacter embedding, which are passed through a stack of 3 convolu-tional layers each containing 512 ﬁlters with shape5⇥1, i.e., whereeach ﬁlter spans 5 characters, followed by batch normalization [18]and ReLU activations. As in Tacotron, these convolutional layersmodel longer-term context (e.g.,N-grams) in the input charactersequence. The output of the ﬁnal convolutional layer is passed into asingle bi-directional [19] LSTM [20] layer containing 512 units (256in each direction) to generate the encoded features.The encoder output is consumed by an attention network whichsummarizes the full encoded sequence as a ﬁxed-length context vectorfor each decoder output step. We use the location-sensitive attentionfrom [21], which extends the additive attention mechanism [22] touse cumulative attention weights from previous decoder time stepsas an additional feature. This encourages the model to move forwardconsistently through the input, mitigating potential failure modeswhere some subsequences are repeated or ignored by the decoder.Attention probabilities are computed after projecting inputs and lo-cation features to 128-dimensional hidden representations. Locationfeatures are computed using 32 1-D convolution ﬁlters of length 31.The decoder is an autoregressive recurrent neural network whichpredicts a mel spectrogram from the encoded input sequence oneframe at a time. The prediction from the previous time step is ﬁrstpassed through a smallpre-netcontaining 2 fully connected layersof 256 hidden ReLU units. We found that the pre-net acting as aninformation bottleneck was essential for learning attention. The pre-net output and attention context vector are concatenated and passedthrough a stack of 2 uni-directional LSTM layers with 1024 units.The concatenation of the LSTM output and the attention contextvector is projected through a linear transform to predict the targetspectrogram frame. Finally, the predicted mel spectrogram is passedthrough a 5-layer convolutionalpost-netwhich predicts a residualto add to the prediction to improve the overall reconstruction. Each
+'LEVEGXIV)QFIHHMRK0SGEXMSR7IRWMXMZI%XXIRXMSR'SRZ0E]IVW&MHMVIGXMSREP0781-RTYX8I\X0E]IV4VI2IX07810E]IVW0MRIEV4VSNIGXMSR0MRIEV4VSNIGXMSR7XST8SOIR'SRZ0E]IV4SWX2IX
+0HO6SHFWURJUDP;EZI2IX1S0;EZIJSVQ7EQTPIWFig. 1. Block diagram of the Tacotron 2 system architecture.post-net layer is comprised of 512 ﬁlters with shape5⇥1with batchnormalization, followed bytanhactivations on all but the ﬁnal layer.We minimize the summed mean squared error (MSE) from beforeand after the post-net to aid convergence. We also experimentedwith a log-likelihood loss by modeling the output distribution witha Mixture Density Network [23,24] to avoid assuming a constantvariance over time, but found that these were more difﬁcult to trainand they did not lead to better sounding samples.In parallel to spectrogram frame prediction, the concatenation ofdecoder LSTM output and the attention context is projected downto a scalar and passed through a sigmoid activation to predict theprobability that the output sequence has completed. This “stop token”prediction is used during inference to allow the model to dynamicallydetermine when to terminate generation instead of always generatingfor a ﬁxed duration. Speciﬁcally, generation completes at the ﬁrstframe for which this probability exceeds a threshold of 0.5.The convolutional layers in the network are regularized usingdropout [25] with probability 0.5, and LSTM layers are regularizedusing zoneout [26] with probability 0.1. In order to introduce outputvariation at inference time, dropout with probability 0.5 is appliedonly to layers in the pre-net of the autoregressive decoder.In contrast to the original Tacotron, our model uses simpler build-ing blocks, using vanilla LSTM and convolutional layers in the en-coder and decoder instead of “CBHG” stacks and GRU recurrentlayers. We do not use a “reduction factor”, i.e., each decoder stepcorresponds to a single spectrogram frame.2.3. WaveNet VocoderWe use a modiﬁed version of the WaveNet architecture from [8] toinvert the mel spectrogram feature representation into time-domainwaveform samples. As in the original architecture, there are 30dilated convolution layers, grouped into 3 dilation cycles, i.e., thedilation rate of layer k (k=0...29) is2k(mod 10). To work withthe 12.5 ms frame hop of the spectrogram frames, only 2 upsamplinglayers are used in the conditioning stack instead of 3 layers.Instead of predicting discretized buckets with a softmax layer,we follow PixelCNN++ [27] and Parallel WaveNet [28] and use a 10-component mixture of logistic distributions (MoL) to generate 16-bitsamples at 24 kHz. To compute the logistic mixture distribution, theWaveNet stack output is passed through a ReLU activation followedEncoderDecoderVocoder
+Figure 16.16 The Tacotron2 architecture: An encoder-decoder maps from graphemes to
+mel spectrograms, followed by a vocoder that maps to waveﬁles. Figure modiﬁed from Shen
+et al. (2018).
+The system is trained on gold log-mel ﬁlterbank features, using teacher forcing,
+that is the decoder is fed the correct log-model spectral feature at each decoder step
+instead of the predicted decoder output from the prior step.
+16.6.3 TTS: Vocoding
+The vocoder for Tacotron 2 is an adaptation of the WaveNet vocoder (van den Oord WaveNet
+et al., 2016). Here we’ll give a somewhat simpliﬁed description of vocoding using
+WaveNet.
+Recall that the goal of the vocoding process here will be to invert a log mel spec-
+trum representations back into a time-domain waveform representation. WaveNet is
+an autoregressive network, like the language models we introduced in Chapter 8. It
+
+## Page 22
+
+22 CHAPTER 16 • A UTOMATIC SPEECH RECOGNITION AND TEXT-TO-SPEECH
+takes spectrograms as input and produces audio output represented as sequences of
+8-bit mu-law (page 6). The probability of a waveform , a sequence of 8-bit mu-law
+values Y=y1;:::;yt, given an intermediate input mel spectrogram his computed as:
+p(Y) =tY
+t=1P(ytjy1;:::;yt 1;h1;:::;ht) (16.24)
+This probability distribution is modeled by a stack of special convolution layers,
+which include a speciﬁc convolutional structure called dilated convolutions , and a
+speciﬁc non-linearity function.
+A dilated convolution is a subtype of causal convolutional layer. Causal or
+masked convolutions look only at the past input, rather than the future; the pre-
+diction of yt+1can only depend on y1;:::;yt, useful for autoregressive left-to-right
+processing. In dilated convolutions , at each successive layer we apply the convolu-dilated
+convolutions
+tional ﬁlter over a span longer than its length by skipping input values. Thus at time
+twith a dilation value of 1, a convolutional ﬁlter of length 2 would see input values
+xtandxt 1. But a ﬁlter with a distillation value of 2 would skip an input, so would
+see input values xtandxt 1. Fig. 16.17 shows the computation of the output at time
+twith 4 dilated convolution layers with dilation values, 1, 2, 4, and 8.
+Because models with causal convolutions do not have recurrent connections, they are typically faster
+to train than RNNs, especially when applied to very long sequences. One of the problems of causal
+convolutions is that they require many layers, or large ﬁlters to increase the receptive ﬁeld. For
+example, in Fig. 2 the receptive ﬁeld is only 5 (= #layers + ﬁlter length - 1). In this paper we use
+dilated convolutions to increase the receptive ﬁeld by orders of magnitude, without greatly increasing
+computational cost.
+A dilated convolution (also called `a trous , or convolution with holes) is a convolution where the
+ﬁlter is applied over an area larger than its length by skipping input values with a certain step. It is
+equivalent to a convolution with a larger ﬁlter derived from the original ﬁlter by dilating it with zeros,
+but is signiﬁcantly more efﬁcient. A dilated convolution effectively allows the network to operate on
+a coarser scale than with a normal convolution. This is similar to pooling or strided convolutions, but
+here the output has the same size as the input. As a special case, dilated convolution with dilation
+1yields the standard convolution. Fig. 3 depicts dilated causal convolutions for dilations 1,2,4,
+and8. Dilated convolutions have previously been used in various contexts, e.g. signal processing
+(Holschneider et al., 1989; Dutilleux, 1989), and image segmentation (Chen et al., 2015; Yu &
+Koltun, 2016).
+InputHidden LayerDilation = 1Hidden LayerDilation = 2Hidden LayerDilation = 4OutputDilation = 8
+Figure 3: Visualization of a stack of dilated causal convolutional layers.
+Stacked dilated convolutions enable networks to have very large receptive ﬁelds with just a few lay-
+ers, while preserving the input resolution throughout the network as well as computational efﬁciency.
+In this paper, the dilation is doubled for every layer up to a limit and then repeated: e.g.
+1,2,4,..., 512,1,2,4,..., 512,1,2,4,..., 512.
+The intuition behind this conﬁguration is two-fold. First, exponentially increasing the dilation factor
+results in exponential receptive ﬁeld growth with depth (Yu & Koltun, 2016). For example each
+1,2,4,..., 512block has receptive ﬁeld of size 1024 , and can be seen as a more efﬁcient and dis-
+criminative (non-linear) counterpart of a 1⇥1024 convolution. Second, stacking these blocks further
+increases the model capacity and the receptive ﬁeld size.
+2.2 S OFTMAX DISTRIBUTIONS
+One approach to modeling the conditional distributions p(xt|x1,...,x t 1)over the individual
+audio samples would be to use a mixture model such as a mixture density network (Bishop, 1994)
+or mixture of conditional Gaussian scale mixtures (MCGSM) (Theis & Bethge, 2015). However,
+van den Oord et al. (2016a) showed that a softmax distribution tends to work better, even when the
+data is implicitly continuous (as is the case for image pixel intensities or audio sample values). One
+of the reasons is that a categorical distribution is more ﬂexible and can more easily model arbitrary
+distributions because it makes no assumptions about their shape.
+Because raw audio is typically stored as a sequence of 16-bit integer values (one per timestep), a
+softmax layer would need to output 65,536 probabilities per timestep to model all possible values.
+To make this more tractable, we ﬁrst apply a µ-law companding transformation (ITU-T, 1988) to
+the data, and then quantize it to 256 possible values:
+f(xt) = sign( xt)ln (1 + µ|xt|)
+ln (1 + µ),
+3
+Figure 16.17 Dilated convolutions, showing one dilation cycle size of 4, i.e., dilation values
+of 1, 2, 4, 8. Figure from van den Oord et al. (2016).
+The Tacotron 2 synthesizer uses 12 convolutional layers in two cycles with a
+dilation cycle size of 6, meaning that the ﬁrst 6 layers have dilations of 1, 2, 4, 8, 16,
+and 32. and the next 6 layers again have dilations of 1, 2, 4, 8, 16, and 32. Dilated
+convolutions allow the vocoder to grow the receptive ﬁeld exponentially with depth.
+WaveNet predicts mu-law audio samples. Recall from page 6 that this is a stan-
+dard compression for audio in which the values at each sampling timestep are com-
+pressed into 8-bits. This means that we can predict the value of each sample with a
+simple 256-way categorical classiﬁer. The output of the dilated convolutions is thus
+passed through a softmax which makes this 256-way decision.
+The spectrogram prediction encoder-decoder and the WaveNet vocoder are trained
+separately. After the spectrogram predictor is trained, the spectrogram prediction
+network is run in teacher-forcing mode, with each predicted spectral frame condi-
+tioned on the encoded text input and the previous frame from the ground truth spec-
+trogram. This sequence of ground truth-aligned spectral features and gold audio
+output is then used to train the vocoder.
+This has been only a high-level sketch of the TTS process. There are numer-
+ous important details that the reader interested in going further with TTS may want
+
+## Page 23
+
+16.7 • O THER SPEECH TASKS 23
+to look into. For example WaveNet uses a special kind of a gated activation func-
+tion as its non-linearity, and contains residual and skip connections. In practice,
+predicting 8-bit audio values doesn’t as work as well as 16-bit, for which a simple
+softmax is insufﬁcient, so decoders use fancier ways as the last step of predicting
+audio sample values, like mixtures of distributions. Finally, the WaveNet vocoder
+as we have described it would be so slow as to be useless; many different kinds of
+efﬁciency improvements are necessary in practice, for example by ﬁnding ways to
+do non-autoregressive generation, avoiding the latency of having to wait to generate
+each frame until the prior frame has been generated, and instead making predictions
+in parallel. We encourage the interested reader to consult the original papers and
+various version of the code.
+16.6.4 TTS Evaluation
+Speech synthesis systems are evaluated by human listeners. (The development of a
+good automatic metric for synthesis evaluation, one that would eliminate the need
+for expensive and time-consuming human listening experiments, remains an open
+and exciting research topic.)
+We evaluate the quality of synthesized utterances by playing a sentence to lis-
+teners and ask them to give a mean opinion score (MOS ), a rating of how good MOS
+the synthesized utterances are, usually on a scale from 1–5. We can then compare
+systems by comparing their MOS scores on the same sentences (using, e.g., paired
+t-tests to test for signiﬁcant differences).
+If we are comparing exactly two systems (perhaps to see if a particular change
+actually improved the system), we can use AB tests . In AB tests, we play the same AB tests
+sentence synthesized by two different systems (an A and a B system). The human
+listeners choose which of the two utterances they like better. We do this for say
+50 sentences (presented in random order) and compare the number of sentences
+preferred for each system.
+16.7 Other Speech Tasks
+While we have focused on speech recognition and TTS in this chapter, there are a
+wide variety of speech-related tasks.
+The task of wake word detection is to detect a word or short phrase, usually in wake word
+order to wake up a voice-enable assistant like Alexa, Siri, or the Google Assistant.
+The goal with wake words is build the detection into small devices at the computing
+edge, to maintain privacy by transmitting the least amount of user speech to a cloud-
+based server. Thus wake word detectors need to be fast, small footprint software that
+can ﬁt into embedded devices. Wake word detectors usually use the same frontend
+feature extraction we saw for ASR, often followed by a whole-word classiﬁer.
+Speaker diarization is the task of determining ‘who spoke when’ in a longspeaker
+diarization
+multi-speaker audio recording, marking the start and end of each speaker’s turns in
+the interaction. This can be useful for transcribing meetings, classroom speech, or
+medical interactions. Often diarization systems use voice activity detection (V AD) to
+ﬁnd segments of continuous speech, extract speaker embedding vectors, and cluster
+the vectors to group together segments likely from the same speaker. More recent
+work is investigating end-to-end algorithms to map directly from input speech to a
+sequence of speaker labels for each frame.
+
+## Page 24
+
+24 CHAPTER 16 • A UTOMATIC SPEECH RECOGNITION AND TEXT-TO-SPEECH
+Speaker recognition , is the task of identifying a speaker. We generally distin-speaker
+recognition
+guish the subtasks of speaker veriﬁcation , where we make a binary decision (is
+this speaker Xor not?), such as for security when accessing personal information
+over the telephone, and speaker identiﬁcation , where we make a one of Ndecision
+trying to match a speaker’s voice against a database of many speakers . These tasks
+are related to language identiﬁcation , in which we are given a waveﬁle and mustlanguage
+identiﬁcation
+identify which language is being spoken; this is useful for example for automatically
+directing callers to human operators that speak appropriate languages.
+16.8 Summary
+This chapter introduced the fundamental algorithms of automatic speech recognition
+(ASR) and text-to-speech (TTS).
+• The task of speech recognition (or speech-to-text) is to map acoustic wave-
+forms to sequences of graphemes.
+• The input to a speech recognizer is a series of acoustic waves. that are sam-
+pled,quantized , and converted to a spectral representation like the log mel
+spectrum .
+• Two common paradigms for speech recognition are the encoder-decoder with
+attention model, and models based on the CTC loss function . Attention-
+based models have higher accuracies, but models based on CTC more easily
+adapt to streaming : outputting graphemes online instead of waiting until the
+acoustic input is complete.
+• ASR is evaluated using the Word Error Rate; the edit distance between the
+hypothesis and the gold transcription.
+•TTS systems are also based on the encoder-decoder architecture. The en-
+coder maps letters to an encoding, which is consumed by the decoder which
+generates mel spectrogram output. A neural vocoder then reads the spectro-
+gram and generates waveforms.
+• TTS systems require a ﬁrst pass of text normalization to deal with numbers
+and abbreviations and other non-standard words.
+• TTS is evaluated by playing a sentence to human listeners and having them
+give a mean opinion score (MOS) or by doing AB tests.
+Bibliographical and Historical Notes
+ASR A number of speech recognition systems were developed by the late 1940s
+and early 1950s. An early Bell Labs system could recognize any of the 10 digits
+from a single speaker (Davis et al., 1952). This system had 10 speaker-dependent
+stored patterns, one for each digit, each of which roughly represented the ﬁrst two
+vowel formants in the digit. They achieved 97%–99% accuracy by choosing the pat-
+tern that had the highest relative correlation coefﬁcient with the input. Fry (1959)
+and Denes (1959) built a phoneme recognizer at University College, London, that
+recognized four vowels and nine consonants based on a similar pattern-recognition
+principle. Fry and Denes’s system was the ﬁrst to use phoneme transition probabili-
+ties to constrain the recognizer.
+
+## Page 25
+
+BIBLIOGRAPHICAL AND HISTORICAL NOTES 25
+The late 1960s and early 1970s produced a number of important paradigm shifts.
+First were a number of feature-extraction algorithms, including the efﬁcient fast
+Fourier transform (FFT) (Cooley and Tukey, 1965), the application of cepstral pro-
+cessing to speech (Oppenheim et al., 1968), and the development of LPC for speech
+coding (Atal and Hanauer, 1971). Second were a number of ways of handling warp-
+ing; stretching or shrinking the input signal to handle differences in speaking rate warping
+and segment length when matching against stored patterns. The natural algorithm for
+solving this problem was dynamic programming, and, as we saw in Appendix A, the
+algorithm was reinvented multiple times to address this problem. The ﬁrst applica-
+tion to speech processing was by Vintsyuk (1968), although his result was not picked
+up by other researchers, and was reinvented by Velichko and Zagoruyko (1970) and
+Sakoe and Chiba (1971) (and 1984). Soon afterward, Itakura (1975) combined this
+dynamic programming idea with the LPC coefﬁcients that had previously been used
+only for speech coding. The resulting system extracted LPC features from incoming
+words and used dynamic programming to match them against stored LPC templates.
+The non-probabilistic use of dynamic programming to match a template against in-
+coming speech is called dynamic time warping .dynamic time
+warping
+The third innovation of this period was the rise of the HMM. Hidden Markov
+models seem to have been applied to speech independently at two laboratories around
+1972. One application arose from the work of statisticians, in particular Baum and
+colleagues at the Institute for Defense Analyses in Princeton who applied HMMs
+to various prediction problems (Baum and Petrie 1966, Baum and Eagon 1967).
+James Baker learned of this work and applied the algorithm to speech processing
+(Baker, 1975) during his graduate work at CMU. Independently, Frederick Jelinek
+and collaborators (drawing from their research in information-theoretical models
+inﬂuenced by the work of Shannon (1948)) applied HMMs to speech at the IBM
+Thomas J. Watson Research Center (Jelinek et al., 1975). One early difference was
+the decoding algorithm; Baker’s DRAGON system used Viterbi (dynamic program-
+ming) decoding, while the IBM system applied Jelinek’s stack decoding algorithm
+(Jelinek, 1969). Baker then joined the IBM group for a brief time before founding
+the speech-recognition company Dragon Systems.
+The use of the HMM, with Gaussian Mixture Models (GMMs) as the phonetic
+component, slowly spread through the speech community, becoming the dominant
+paradigm by the 1990s. One cause was encouragement by ARPA, the Advanced
+Research Projects Agency of the U.S. Department of Defense. ARPA started a
+ﬁve-year program in 1971 to build 1000-word, constrained grammar, few speaker
+speech understanding (Klatt, 1977), and funded four competing systems of which
+Carnegie-Mellon University’s Harpy system (Lowerre, 1976), which used a simpli-
+ﬁed version of Baker’s HMM-based DRAGON system was the best of the tested sys-
+tems. ARPA (and then DARPA) funded a number of new speech research programs,
+beginning with 1000-word speaker-independent read-speech tasks like “Resource
+Management” (Price et al., 1988), recognition of sentences read from the Wall Street
+Journal (WSJ), Broadcast News domain (LDC 1998, Graff 1997) (transcription of
+actual news broadcasts, including quite difﬁcult passages such as on-the-street inter-
+views) and the Switchboard, CallHome, CallFriend, and Fisher domains (Godfrey
+et al. 1992, Cieri et al. 2004) (natural telephone conversations between friends or
+strangers). Each of the ARPA tasks involved an approximately annual bakeoff at bakeoff
+which systems were evaluated against each other. The ARPA competitions resulted
+in wide-scale borrowing of techniques among labs since it was easy to see which
+ideas reduced errors the previous year, and the competitions were probably an im-
+
+## Page 26
+
+26 CHAPTER 16 • A UTOMATIC SPEECH RECOGNITION AND TEXT-TO-SPEECH
+portant factor in the eventual spread of the HMM paradigm.
+By around 1990 neural alternatives to the HMM/GMM architecture for ASR
+arose, based on a number of earlier experiments with neural networks for phoneme
+recognition and other speech tasks. Architectures included the time-delay neural
+network ( TDNN )—the ﬁrst use of convolutional networks for speech— (Waibel
+et al. 1989, Lang et al. 1990), RNNs (Robinson and Fallside, 1991), and the hybrid hybrid
+HMM/MLP architecture in which a feedforward neural network is trained as a pho-
+netic classiﬁer whose outputs are used as probability estimates for an HMM-based
+architecture (Morgan and Bourlard 1990, Bourlard and Morgan 1994, Morgan and
+Bourlard 1995).
+While the hybrid systems showed performance close to the standard HMM/GMM
+models, the problem was speed: large hybrid models were too slow to train on the
+CPUs of that era. For example, the largest hybrid system, a feedforward network,
+was limited to a hidden layer of 4000 units, producing probabilities over only a few
+dozen monophones. Yet training this model still required the research group to de-
+sign special hardware boards to do vector processing (Morgan and Bourlard, 1995).
+A later analytic study showed the performance of such simple feedforward MLPs
+for ASR increases sharply with more than 1 hidden layer, even controlling for the
+total number of parameters (Maas et al., 2017). But the computational resources of
+the time were insufﬁcient for more layers.
+Over the next two decades a combination of Moore’s law and the rise of GPUs
+allowed deep neural networks with many layers. Performance was getting close to
+traditional systems on smaller tasks like TIMIT phone recognition by 2009 (Mo-
+hamed et al., 2009), and by 2012, the performance of hybrid systems had surpassed
+traditional HMM/GMM systems (Jaitly et al. 2012, Dahl et al. 2012, inter alia).
+Originally it seemed that unsupervised pretraining of the networks using a tech-
+nique like deep belief networks was important, but by 2013, it was clear that for
+hybrid HMM/GMM feedforward networks, all that mattered was to use a lot of data
+and enough layers, although a few other components did improve performance: us-
+ing log mel features instead of MFCCs, using dropout, and using rectiﬁed linear
+units (Deng et al. 2013, Maas et al. 2013, Dahl et al. 2013).
+Meanwhile early work had proposed the CTC loss function by 2006 (Graves
+et al., 2006), and by 2012 the RNN-Transducer was deﬁned and applied to phone
+recognition (Graves 2012, Graves et al. 2013), and then to end-to-end speech recog-
+nition rescoring (Graves and Jaitly, 2014), and then recognition (Maas et al., 2015),
+with advances such as specialized beam search (Hannun et al., 2014). (Our de-
+scription of CTC in the chapter draws on Hannun (2017), which we encourage the
+interested reader to follow).
+The encoder-decoder architecture was applied to speech at about the same time
+by two different groups, in the Listen Attend and Spell system of Chan et al. (2016)
+and the attention-based encoder decoder architecture of Chorowski et al. (2014)
+and Bahdanau et al. (2016). By 2018 Transformers were included in this encoder-
+decoder architecture. Karita et al. (2019) is a nice comparison of RNNs vs Trans-
+formers in encoder-architectures for ASR, TTS, and speech-to-speech translation.
+Popular toolkits for speech processing include Kaldi (Povey et al., 2011) and Kaldi
+ESPnet (Watanabe et al. 2018, Hayashi et al. 2020). ESPnet
+TTS As we noted at the beginning of the chapter, speech synthesis is one of the
+earliest ﬁelds of speech and language processing. The 18th century saw a number
+of physical models of the articulation process, including the von Kempelen model
+mentioned above, as well as the 1773 vowel model of Kratzenstein in Copenhagen
+
+## Page 27
+
+EXERCISES 27
+using organ pipes.
+The early 1950s saw the development of three early paradigms of waveform
+synthesis: formant synthesis, articulatory synthesis, and concatenative synthesis.
+Modern encoder-decoder systems are distant descendants of formant synthesiz-
+ers. Formant synthesizers originally were inspired by attempts to mimic human
+speech by generating artiﬁcial spectrograms. The Haskins Laboratories Pattern
+Playback Machine generated a sound wave by painting spectrogram patterns on a
+moving transparent belt and using reﬂectance to ﬁlter the harmonics of a wave-
+form (Cooper et al., 1951); other very early formant synthesizers include those of
+Lawrence (1953) and Fant (1951). Perhaps the most well-known of the formant
+synthesizers were the Klatt formant synthesizer and its successor systems, includ-
+ing the MITalk system (Allen et al., 1987) and the Klattalk software used in Digital
+Equipment Corporation’s DECtalk (Klatt, 1982). See Klatt (1975) for details.
+A second early paradigm, concatenative synthesis, seems to have been ﬁrst pro-
+posed by Harris (1953) at Bell Laboratories; he literally spliced together pieces of
+magnetic tape corresponding to phones. Soon afterwards, Peterson et al. (1958) pro-
+posed a theoretical model based on diphones, including a database with multiple
+copies of each diphone with differing prosody, each labeled with prosodic features
+including F0, stress, and duration, and the use of join costs based on F0 and formant
+distance between neighboring units. But such diphone synthesis models were not
+actually implemented until decades later (Dixon and Maxey 1968, Olive 1977). The
+1980s and 1990s saw the invention of unit selection synthesis , based on larger units
+of non-uniform length and the use of a target cost, (Sagisaka 1988, Sagisaka et al.
+1992, Hunt and Black 1996, Black and Taylor 1994, Syrdal et al. 2000).
+A third paradigm, articulatory synthesizers attempt to synthesize speech by
+modeling the physics of the vocal tract as an open tube. Representative models
+include Stevens et al. (1953), Flanagan et al. (1975), and Fant (1986). See Klatt
+(1975) and Flanagan (1972) for more details.
+Most early TTS systems used phonemes as input; development of the text anal-
+ysis components of TTS came somewhat later, drawing on NLP. Indeed the ﬁrst
+true text-to-speech system seems to have been the system of Umeda and Teranishi
+(Umeda et al. 1968, Teranishi and Umeda 1968, Umeda 1976), which included a
+parser that assigned prosodic boundaries, as well as accent and stress.
+Exercises
+16.1 Analyze each of the errors in the incorrectly recognized transcription of “um
+the phone is I left the. . . ” on page 16. For each one, give your best guess as
+to whether you think it is caused by a problem in signal processing, pronun-
+ciation modeling, lexicon size, language model, or pruning in the decoding
+search.
+
+## Page 28
+
+28 Chapter 16 • Automatic Speech Recognition and Text-to-Speech
+Allen, J., M. S. Hunnicut, and D. H. Klatt. 1987. From Text
+to Speech: The MITalk system . Cambridge University
+Press.
+Atal, B. S. and S. Hanauer. 1971. Speech analysis and syn-
+thesis by prediction of the speech wave. JASA , 50:637–
+655.
+Bahdanau, D., J. Chorowski, D. Serdyuk, P. Brakel, and
+Y . Bengio. 2016. End-to-end attention-based large vo-
+cabulary speech recognition. ICASSP .
+Baker, J. K. 1975. The DRAGON system – An overview.
+IEEE Transactions on ASSP , ASSP-23(1):24–29.
+Baum, L. E. and J. A. Eagon. 1967. An inequality with appli-
+cations to statistical estimation for probabilistic functions
+of Markov processes and to a model for ecology. Bulletin
+of the American Mathematical Society , 73(3):360–363.
+Baum, L. E. and T. Petrie. 1966. Statistical inference for
+probabilistic functions of ﬁnite-state Markov chains. An-
+nals of Mathematical Statistics , 37(6):1554–1563.
+Black, A. W. and P. Taylor. 1994. CHATR: A generic speech
+synthesis system. COLING .
+Bourlard, H. and N. Morgan. 1994. Connectionist Speech
+Recognition: A Hybrid Approach . Kluwer.
+Bu, H., J. Du, X. Na, B. Wu, and H. Zheng. 2017. AISHELL-
+1: An open-source Mandarin speech corpus and a speech
+recognition baseline. O-COCOSDA Proceedings .
+Canavan, A., D. Graff, and G. Zipperlen. 1997. CALL-
+HOME American English speech LDC97S42. Linguistic
+Data Consortium.
+Chan, W., N. Jaitly, Q. Le, and O. Vinyals. 2016. Listen,
+attend and spell: A neural network for large vocabulary
+conversational speech recognition. ICASSP .
+Chorowski, J., D. Bahdanau, K. Cho, and Y . Bengio.
+2014. End-to-end continuous speech recognition us-
+ing attention-based recurrent NN: First results. NeurIPS
+Deep Learning and Representation Learning Workshop .
+Cieri, C., D. Miller, and K. Walker. 2004. The Fisher cor-
+pus: A resource for the next generations of speech-to-text.
+LREC .
+Cooley, J. W. and J. W. Tukey. 1965. An algorithm for the
+machine calculation of complex Fourier series. Mathe-
+matics of Computation , 19(90):297–301.
+Cooper, F. S., A. M. Liberman, and J. M. Borst. 1951. The
+interconversion of audible and visible patterns as a basis
+for research in the perception of speech. Proceedings of
+the National Academy of Sciences , 37(5):318–325.
+Dahl, G. E., T. N. Sainath, and G. E. Hinton. 2013. Im-
+proving deep neural networks for LVCSR using rectiﬁed
+linear units and dropout. ICASSP .
+Dahl, G. E., D. Yu, L. Deng, and A. Acero. 2012. Context-
+dependent pre-trained deep neural networks for large-
+vocabulary speech recognition. IEEE Transactions on au-
+dio, speech, and language processing , 20(1):30–42.
+David, Jr., E. E. and O. G. Selfridge. 1962. Eyes and ears
+for computers. Proceedings of the IRE (Institute of Radio
+Engineers) , 50:1093–1101.
+Davis, K. H., R. Biddulph, and S. Balashek. 1952. Automatic
+recognition of spoken digits. JASA , 24(6):637–642.Davis, S. and P. Mermelstein. 1980. Comparison of para-
+metric representations for monosyllabic word recognition
+in continuously spoken sentences. IEEE Transactions on
+ASSP , 28(4):357–366.
+Demberg, V . 2006. Letter-to-phoneme conversion for a Ger-
+man text-to-speech system. Diplomarbeit Nr. 47, Univer-
+sit¨at Stuttgart.
+Denes, P. 1959. The design and operation of the mechanical
+speech recognizer at University College London. Journal
+of the British Institution of Radio Engineers , 19(4):219–
+234. Appears together with companion paper (Fry 1959).
+Deng, L., G. Hinton, and B. Kingsbury. 2013. New types of
+deep neural network learning for speech recognition and
+related applications: An overview. ICASSP .
+Dixon, N. and H. Maxey. 1968. Terminal analog synthesis of
+continuous speech using the diphone method of segment
+assembly. IEEE Transactions on Audio and Electroacous-
+tics, 16(1):40–50.
+Du Bois, J. W., W. L. Chafe, C. Meyer, S. A. Thompson,
+R. Englebretson, and N. Martey. 2005. Santa Barbara cor-
+pus of spoken American English, Parts 1-4. Philadelphia:
+Linguistic Data Consortium.
+Ebden, P. and R. Sproat. 2015. The Kestrel TTS text
+normalization system. Natural Language Engineering ,
+21(3):333.
+van Esch, D. and R. Sproat. 2018. An expanded taxonomy of
+semiotic classes for text normalization. INTERSPEECH .
+Fant, G. M. 1951. Speech communication research. Ing.
+Vetenskaps Akad. Stockholm, Sweden , 24:331–337.
+Fant, G. M. 1986. Glottal ﬂow: Models and interaction.
+Journal of Phonetics , 14:393–399.
+Flanagan, J. L. 1972. Speech Analysis, Synthesis, and Per-
+ception . Springer.
+Flanagan, J. L., K. Ishizaka, and K. L. Shipley. 1975. Syn-
+thesis of speech from a dynamic model of the vocal
+cords and vocal tract. The Bell System Technical Jour-
+nal, 54(3):485–506.
+Fry, D. B. 1959. Theoretical aspects of mechanical speech
+recognition. Journal of the British Institution of Radio
+Engineers , 19(4):211–218. Appears together with com-
+panion paper (Denes 1959).
+Gillick, L. and S. J. Cox. 1989. Some statistical issues in the
+comparison of speech recognition algorithms. ICASSP .
+Godfrey, J., E. Holliman, and J. McDaniel. 1992. SWITCH-
+BOARD: Telephone speech corpus for research and de-
+velopment. ICASSP .
+Graff, D. 1997. The 1996 Broadcast News speech and
+language-model corpus. Proceedings DARPA Speech
+Recognition Workshop .
+Graves, A. 2012. Sequence transduction with recurrent neu-
+ral networks. ICASSP .
+Graves, A., S. Fern ´andez, F. Gomez, and J. Schmidhuber.
+2006. Connectionist temporal classiﬁcation: Labelling
+unsegmented sequence data with recurrent neural net-
+works. ICML .
+Graves, A. and N. Jaitly. 2014. Towards end-to-end speech
+recognition with recurrent neural networks. ICML .
+
+## Page 29
+
+Exercises 29
+Graves, A., A.-r. Mohamed, and G. Hinton. 2013.
+Speech recognition with deep recurrent neural networks.
+ICASSP .
+Hannun, A. 2017. Sequence modeling with CTC. Distill ,
+2(11).
+Hannun, A. Y ., A. L. Maas, D. Jurafsky, and A. Y . Ng. 2014.
+First-pass large vocabulary continuous speech recogni-
+tion using bi-directional recurrent DNNs. ArXiv preprint
+arXiv:1408.2873.
+Harris, C. M. 1953. A study of the building blocks in speech.
+JASA , 25(5):962–969.
+Hayashi, T., R. Yamamoto, K. Inoue, T. Yoshimura,
+S. Watanabe, T. Toda, K. Takeda, Y . Zhang, and X. Tan.
+2020. ESPnet-TTS: Uniﬁed, reproducible, and inte-
+gratable open source end-to-end text-to-speech toolkit.
+ICASSP .
+Hunt, A. J. and A. W. Black. 1996. Unit selection in a con-
+catenative speech synthesis system using a large speech
+database. ICASSP .
+Itakura, F. 1975. Minimum prediction residual principle ap-
+plied to speech recognition. IEEE Transactions on ASSP ,
+ASSP-32:67–72.
+Ito, K. and L. Johnson. 2017. The LJ speech dataset. https:
+//keithito.com/LJ-Speech-Dataset/ .
+Jaitly, N., P. Nguyen, A. Senior, and V . Vanhoucke. 2012.
+Application of pretrained deep neural networks to large
+vocabulary speech recognition. INTERSPEECH .
+Jelinek, F. 1969. A fast sequential decoding algorithm us-
+ing a stack. IBM Journal of Research and Development ,
+13:675–685.
+Jelinek, F., R. L. Mercer, and L. R. Bahl. 1975. Design of a
+linguistic statistical decoder for the recognition of contin-
+uous speech. IEEE Transactions on Information Theory ,
+IT-21(3):250–256.
+Karita, S., N. Chen, T. Hayashi, T. Hori, H. Inaguma,
+Z. Jiang, M. Someki, N. E. Y . Soplin, R. Yamamoto,
+X. Wang, S. Watanabe, T. Yoshimura, and W. Zhang.
+2019. A comparative study on transformer vs RNN in
+speech applications. IEEE ASRU-19 .
+Kendall, T. and C. Farrington. 2020. The Corpus of Regional
+African American Language. Version 2020.05. Eugene,
+OR: The Online Resources for African American Lan-
+guage Project. http://oraal.uoregon.edu/coraal.
+Klatt, D. H. 1975. V oice onset time, friction, and aspiration
+in word-initial consonant clusters. Journal of Speech and
+Hearing Research , 18:686–706.
+Klatt, D. H. 1977. Review of the ARPA speech understand-
+ing project. JASA , 62(6):1345–1366.
+Klatt, D. H. 1982. The Klattalk text-to-speech conversion
+system. ICASSP .
+Lang, K. J., A. H. Waibel, and G. E. Hinton. 1990. A
+time-delay neural network architecture for isolated word
+recognition. Neural networks , 3(1):23–43.
+Lawrence, W. 1953. The synthesis of speech from signals
+which have a low information rate. In W. Jackson, ed.,
+Communication Theory , 460–469. Butterworth.
+LDC. 1998. LDC Catalog: Hub4 project . Univer-
+sity of Pennsylvania. www.ldc.upenn.edu/Catalog/
+LDC98S71.html .Liu, Y ., P. Fung, Y . Yang, C. Cieri, S. Huang, and D. Graff.
+2006. HKUST/MTS: A very large scale Mandarin tele-
+phone speech corpus. International Conference on Chi-
+nese Spoken Language Processing .
+Lowerre, B. T. 1976. The Harpy Speech Recognition System .
+Ph.D. thesis, Carnegie Mellon University, Pittsburgh, PA.
+Maas, A., Z. Xie, D. Jurafsky, and A. Y . Ng. 2015. Lexicon-
+free conversational speech recognition with neural net-
+works. NAACL HLT .
+Maas, A. L., A. Y . Hannun, and A. Y . Ng. 2013. Rectiﬁer
+nonlinearities improve neural network acoustic models.
+ICML .
+Maas, A. L., P. Qi, Z. Xie, A. Y . Hannun, C. T. Lengerich,
+D. Jurafsky, and A. Y . Ng. 2017. Building dnn acoustic
+models for large vocabulary speech recognition. Com-
+puter Speech & Language , 41:195–213.
+Mohamed, A., G. E. Dahl, and G. E. Hinton. 2009. Deep
+Belief Networks for phone recognition. NIPS Workshop
+on Deep Learning for Speech Recognition and Related
+Applications .
+Morgan, N. and H. Bourlard. 1990. Continuous speech
+recognition using multilayer perceptrons with hidden
+markov models. ICASSP .
+Morgan, N. and H. A. Bourlard. 1995. Neural networks for
+statistical recognition of continuous speech. Proceedings
+of the IEEE , 83(5):742–772.
+NIST. 2005. Speech recognition scoring toolkit (sctk) ver-
+sion 2.1. http://www.nist.gov/speech/tools/ .
+NIST. 2007. Matched Pairs Sentence-Segment Word Error
+(MAPSSWE) Test.
+Olive, J. P. 1977. Rule synthesis of speech from dyadic units.
+ICASSP77 .
+van den Oord, A., S. Dieleman, H. Zen, K. Simonyan,
+O. Vinyals, A. Graves, N. Kalchbrenner, A. Senior, and
+K. Kavukcuoglu. 2016. WaveNet: A Generative Model
+for Raw Audio. ISCA Workshop on Speech Synthesis
+Workshop .
+Oppenheim, A. V ., R. W. Schafer, and T. G. J. Stockham.
+1968. Nonlinear ﬁltering of multiplied and convolved sig-
+nals. Proceedings of the IEEE , 56(8):1264–1291.
+Panayotov, V ., G. Chen, D. Povey, and S. Khudanpur. 2015.
+Librispeech: an ASR corpus based on public domain au-
+dio books. ICASSP .
+Peterson, G. E., W. S.-Y . Wang, and E. Sivertsen. 1958.
+Segmentation techniques in speech synthesis. JASA ,
+30(8):739–742.
+Povey, D., A. Ghoshal, G. Boulianne, L. Burget, O. Glem-
+bek, N. Goel, M. Hannemann, P. Motlicek, Y . Qian,
+P. Schwarz, J. Silovsk ´y, G. Stemmer, and K. Vesel ´y.
+2011. The Kaldi speech recognition toolkit. ASRU .
+Price, P. J., W. Fisher, J. Bernstein, and D. Pallet. 1988. The
+DARPA 1000-word resource management database for
+continuous speech recognition. ICASSP .
+Pundak, G. and T. N. Sainath. 2016. Lower frame rate neural
+network acoustic models. INTERSPEECH .
+Robinson, T. and F. Fallside. 1991. A recurrent error prop-
+agation network speech recognition system. Computer
+Speech & Language , 5(3):259–274.
+Sagisaka, Y . 1988. Speech synthesis by rule using an optimal
+selection of non-uniform synthesis units. ICASSP .
+
+## Page 30
+
+30 Chapter 16 • Automatic Speech Recognition and Text-to-Speech
+Sagisaka, Y ., N. Kaiki, N. Iwahashi, and K. Mimura. 1992.
+Atr – n-talk speech synthesis system. ICSLP .
+Sakoe, H. and S. Chiba. 1971. A dynamic programming
+approach to continuous speech recognition. Proceedings
+of the Seventh International Congress on Acoustics , vol-
+ume 3. Akad ´emiai Kiad ´o.
+Sakoe, H. and S. Chiba. 1984. Dynamic programming al-
+gorithm optimization for spoken word recognition. IEEE
+Transactions on ASSP , ASSP-26(1):43–49.
+Shannon, C. E. 1948. A mathematical theory of commu-
+nication. Bell System Technical Journal , 27(3):379–423.
+Continued in the following volume.
+Shen, J., R. Pang, R. J. Weiss, M. Schuster, N. Jaitly,
+Z. Yang, Z. Chen, Y . Zhang, Y . Wang, R. Skerry-Ryan,
+R. A. Saurous, Y . Agiomyrgiannakis, and Y . Wu. 2018.
+Natural TTS synthesis by conditioning WaveNet on mel
+spectrogram predictions. ICASSP .
+Sproat, R., A. W. Black, S. F. Chen, S. Kumar, M. Ostendorf,
+and C. Richards. 2001. Normalization of non-standard
+words. Computer Speech & Language , 15(3):287–333.
+Sproat, R. and K. Gorman. 2018. A brief summary of the
+Kaggle text normalization challenge.
+Stevens, K. N., S. Kasowski, and G. M. Fant. 1953. An elec-
+trical analog of the vocal tract. JASA , 25(4):734–742.
+Stevens, S. S. and J. V olkmann. 1940. The relation of pitch
+to frequency: A revised scale. The American Journal of
+Psychology , 53(3):329–353.
+Stevens, S. S., J. V olkmann, and E. B. Newman. 1937. A
+scale for the measurement of the psychological magni-
+tude pitch. JASA , 8:185–190.
+Syrdal, A. K., C. W. Wightman, A. Conkie, Y . Stylianou,
+M. Beutnagel, J. Schroeter, V . Strom, and K.-S. Lee.
+2000. Corpus-based techniques in the AT&T NEXTGEN
+synthesis system. ICSLP .
+Taylor, P. 2009. Text-to-Speech Synthesis . Cambridge Uni-
+versity Press.
+Teranishi, R. and N. Umeda. 1968. Use of pronouncing dic-
+tionary in speech synthesis experiments. 6th International
+Congress on Acoustics .
+Umeda, N. 1976. Linguistic rules for text-to-speech synthe-
+sis.Proceedings of the IEEE , 64(4):443–451.
+Umeda, N., E. Matui, T. Suzuki, and H. Omura. 1968. Syn-
+thesis of fairy tale using an analog vocal tract. 6th Inter-
+national Congress on Acoustics .
+Velichko, V . M. and N. G. Zagoruyko. 1970. Automatic
+recognition of 200 words. International Journal of Man-
+Machine Studies , 2:223–234.
+Vintsyuk, T. K. 1968. Speech discrimination by dynamic
+programming. Cybernetics , 4(1):52–57. Original Rus-
+sian: Kibernetika 4(1):81-88. 1968.
+Waibel, A., T. Hanazawa, G. Hinton, K. Shikano, and K. J.
+Lang. 1989. Phoneme recognition using time-delay neu-
+ral networks. IEEE Transactions on ASSP , 37(3):328–
+339.
+Wang, Y ., R. Skerry-Ryan, D. Stanton, Y . Wu, R. J. Weiss,
+N. Jaitly, Z. Yang, Y . Xiao, Z. Chen, S. Bengio, Q. Le,
+Y . Agiomyrgiannakis, R. Clark, and R. A. Saurous. 2017.
+Tacotron: Towards end-to-end speech synthesis. INTER-
+SPEECH .Watanabe, S., T. Hori, S. Karita, T. Hayashi, J. Nishitoba,
+Y . Unno, N. E. Y . Soplin, J. Heymann, M. Wiesner,
+N. Chen, A. Renduchintala, and T. Ochiai. 2018. ESPnet:
+End-to-end speech processing toolkit. INTERSPEECH .
+Zhang, H., R. Sproat, A. H. Ng, F. Stahlberg, X. Peng,
+K. Gorman, and B. Roark. 2019. Neural models of text
+normalization for speech applications. Computational
+Linguistics , 45(2):293–337.
+
